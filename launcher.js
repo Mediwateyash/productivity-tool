@@ -7,13 +7,23 @@ console.log('\x1b[36m%s\x1b[0m', '==============================================
 console.log('\x1b[35m%s\x1b[0m', '📦 Initializing backend MERN database and frontend servers concurrently...\n');
 
 // Path configurations
-const rootDir = __dirname;
+// In packaged executables, process.pkg is true and __dirname is a virtual path.
+// We must use path.dirname(process.execPath) to find the physical executable folder.
+const rootDir = process.pkg 
+  ? path.dirname(process.execPath) 
+  : __dirname;
+
+console.log(`📂 Project Root: ${rootDir}\n`);
 
 // Launch server processes concurrently using root npm dev trigger
 const serverProcess = spawn('npm', ['run', 'dev'], {
   cwd: rootDir,
   shell: true,
   stdio: 'pipe'
+});
+
+serverProcess.on('error', (err) => {
+  console.error('\x1b[31m%s\x1b[0m', `❌ Failed to start server processes: ${err.message}`);
 });
 
 let browserOpened = false;
@@ -42,6 +52,13 @@ serverProcess.stderr.on('data', (data) => {
 
 serverProcess.on('close', (code) => {
   console.log(`\nLauncher closed with exit code ${code}`);
+  if (code !== 0 && !browserOpened) {
+    console.log('\n\x1b[31m%s\x1b[0m', '❌ The server processes exited unexpectedly.');
+    console.log('\x1b[31m%s\x1b[0m', '💡 Troubleshooting Hints:');
+    console.log('   1. Ensure NodeJS is installed on your Windows system.');
+    console.log('   2. Double check if backend database credentials exist or Mongo/localDB failover is unhindered.');
+    console.log('   3. Run "npm run install-all" in the project folder to ensure node_modules are intact.');
+  }
   process.exit(code);
 });
 
