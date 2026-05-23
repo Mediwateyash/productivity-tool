@@ -34,6 +34,10 @@ export const Tracker = () => {
   const [logNote, setLogNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Custom onboarding states
+  const [customStartDate, setCustomStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [starting, setStarting] = useState(false);
+
   useEffect(() => {
     fetchLogs();
   }, []);
@@ -56,15 +60,17 @@ export const Tracker = () => {
     }
   };
 
-  // Generate date strings for a 60-day cycle ending today!
-  const generateCycleDates = () => {
+  // Generate date strings for a 60-day cycle starting from a custom start date!
+  const generateCycleDates = (startDateStr) => {
+    if (!startDateStr) return [];
     const dates = [];
-    for (let i = 59; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
+    const start = new Date(startDateStr);
+    for (let i = 0; i < 60; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
       const dateStr = d.toISOString().split('T')[0];
       dates.push({
-        index: 60 - i,
+        index: i + 1,
         dateStr,
         label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         dayOfWeek: d.toLocaleDateString('en-US', { weekday: 'short' })
@@ -73,7 +79,7 @@ export const Tracker = () => {
     return dates;
   };
 
-  const cycleDates = generateCycleDates();
+  const cycleDates = generateCycleDates(user?.streakStartDate);
 
   // Metrics calculator
   const calculateMetrics = (logList) => {
@@ -154,6 +160,14 @@ export const Tracker = () => {
   };
 
   const handleDateClick = (dayObj) => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const isFuture = new Date(dayObj.dateStr) > new Date(todayStr);
+    
+    if (isFuture) {
+      showToast("🔒 Cannot log progress for future dates. Stay focused on today!", "warning");
+      return;
+    }
+
     const existing = logs.find(l => l.date === dayObj.dateStr);
     setSelectedDayObj({
       ...dayObj,
@@ -211,8 +225,112 @@ export const Tracker = () => {
     }
   };
 
+  const handleStartChallenge = async (e) => {
+    e.preventDefault();
+    setStarting(true);
+    try {
+      await updateProfile({ streakStartDate: customStartDate });
+      showToast('⚡ 60-Day Productivity Challenge started! Procrastination ends now.', 'success');
+      
+      // Auto achievements update
+      await apiFetch('/achievements/check', { method: 'POST' });
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to start streak challenge.', 'error');
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  const handleResetChallenge = async () => {
+    if (!window.confirm("⚠️ Are you sure you want to restart your 60-day challenge? This will clear your current start date and let you generate a new grid.")) return;
+    
+    try {
+      await updateProfile({ streakStartDate: null });
+      setSelectedDayObj(null);
+      showToast('Streak challenge reset. You can now establish a new start date.', 'info');
+    } catch (err) {
+      showToast('Failed to reset challenge.', 'error');
+    }
+  };
+
   if (loading) {
     return <TrackerSkeleton />;
+  }
+
+  // Onboarding Phase: Show start date configuration panel if no start date exists
+  if (!user?.streakStartDate) {
+    return (
+      <div className="space-y-8 animate-fadeIn max-w-2xl mx-auto py-10">
+        {/* Onboarding Header */}
+        <div className="text-center space-y-2">
+          <div className="w-16 h-16 bg-blue-600/10 text-blue-500 rounded-3xl flex items-center justify-center mx-auto shadow-md">
+            <Flame size={32} className="animate-pulse" />
+          </div>
+          <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white font-sans tracking-tight">
+            60-Day Productivity Challenge
+          </h2>
+          <p className="text-slate-500 dark:text-slate-400 text-sm max-w-md mx-auto font-medium">
+            Lock in consistency, establish daily momentum, and watch your unbroken focus habits level up.
+          </p>
+        </div>
+
+        {/* Setup Card */}
+        <div className="glass-card p-8 border border-blue-500/20 shadow-xl shadow-blue-500/5 relative overflow-hidden rounded-3xl">
+          <div className="absolute top-0 right-0 p-6 text-blue-500/5">
+            <CalendarDays size={120} />
+          </div>
+
+          <form onSubmit={handleStartChallenge} className="space-y-6 relative z-10">
+            <div>
+              <span className="text-[10px] font-extrabold text-blue-600 dark:text-blue-400 uppercase tracking-widest block mb-2 font-mono">
+                CHALLENGE ONBOARDING
+              </span>
+              <h3 className="text-xl font-extrabold text-slate-800 dark:text-white font-sans">
+                Set Your Challenge Start Date
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed font-medium">
+                Choose the day your 60-day streak map will begin. You can customize this to start with today, or select a customized date if you want to align it with a specific milestone.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
+                Productivity Start Date
+              </label>
+              <input
+                type="date"
+                required
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                className="glass-input text-sm max-w-sm"
+              />
+            </div>
+
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-600/5 to-indigo-600/5 border border-blue-500/10 space-y-3">
+              <h4 className="font-extrabold text-xs text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
+                <Sparkles size={14} className="text-blue-500" />
+                <span>What Happens Next?</span>
+              </h4>
+              <ul className="text-slate-500 dark:text-slate-400 text-[11px] leading-relaxed space-y-1.5 font-medium list-disc pl-4">
+                <li>A customizable 60-day interactive grid map will generate starting exactly from your chosen date.</li>
+                <li>You can click on any day block to log whether you were **Productive** or **Missed** your daily routine targets.</li>
+                <li>Logging productive ticks instantly builds streaks and increases your global consistency percentage!</li>
+              </ul>
+            </div>
+
+            <button
+              type="submit"
+              disabled={starting}
+              className="w-full glass-btn-primary py-3 text-xs font-extrabold uppercase tracking-wider flex items-center justify-center gap-1.5 rounded-2xl shadow-lg shadow-blue-500/10 active:scale-98 transition-all"
+            >
+              <Zap size={14} fill="currentColor" />
+              <span>{starting ? 'Starting challenge...' : "Let's Get Started!"}</span>
+            </button>
+          </form>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -284,28 +402,46 @@ export const Tracker = () => {
               <CalendarDays size={18} className="text-blue-500" />
               <span>Streak Heatmap Grid</span>
             </h3>
-            <span className="px-2.5 py-1 text-[10px] font-bold bg-blue-500/10 text-blue-500 rounded-lg uppercase tracking-wider">
-              60 Days Cycle
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-1 text-[10px] font-bold bg-blue-500/10 text-blue-500 rounded-lg uppercase tracking-wider font-mono">
+                Day 1 Start: {user?.streakStartDate}
+              </span>
+              <button 
+                onClick={handleResetChallenge}
+                className="px-2.5 py-1 text-[9px] font-extrabold bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 rounded-lg uppercase tracking-wider transition-colors active:scale-95 border border-red-500/20"
+                title="Restart 60-day challenge date"
+              >
+                Reset Date
+              </button>
+            </div>
           </div>
 
           {/* Grid display */}
           <div className="grid grid-cols-5 sm:grid-cols-10 gap-3">
             {cycleDates.map((day) => {
               const match = logs.find(l => l.date === day.dateStr);
+              const todayStr = new Date().toISOString().split('T')[0];
+              const isFuture = new Date(day.dateStr) > new Date(todayStr);
+              const isToday = day.dateStr === todayStr;
+
               return (
                 <div
                   key={day.index}
                   onClick={() => handleDateClick(day)}
-                  title={`${day.label}: ${match ? match.status : 'No record'}`}
+                  title={isFuture ? `${day.label}: 🔒 Future date` : `${day.label}: ${match ? match.status : 'No record'}`}
                   className={`
-                    aspect-square rounded-2xl flex flex-col justify-between p-2 cursor-pointer transition-all duration-155 hover:scale-105 active:scale-95 border
-                    ${match 
+                    aspect-square rounded-2xl flex flex-col justify-between p-2 transition-all duration-155 border
+                    ${isFuture
+                      ? 'bg-slate-100/20 dark:bg-brand-900/10 border-slate-200/20 dark:border-brand-900/30 text-slate-450/40 dark:text-slate-600/40 opacity-40 cursor-not-allowed'
+                      : 'cursor-pointer hover:scale-105 active:scale-95'
+                    }
+                    ${!isFuture && match 
                       ? match.status === 'productive'
                         ? 'bg-gradient-to-br from-emerald-500/25 to-emerald-500/10 border-emerald-500/30 text-emerald-500 dark:text-emerald-400 shadow-sm shadow-emerald-500/5'
                         : 'bg-gradient-to-br from-rose-500/25 to-rose-500/10 border-rose-500/30 text-rose-500 dark:text-rose-400'
-                      : 'bg-slate-100/50 hover:bg-slate-200/50 dark:bg-brand-850/40 dark:hover:bg-brand-800/70 border-slate-200/50 dark:border-brand-800/50 text-slate-400 dark:text-slate-500'
+                      : !isFuture && 'bg-slate-100/50 hover:bg-slate-200/50 dark:bg-brand-850/40 dark:hover:bg-brand-800/70 border-slate-200/50 dark:border-brand-800/50 text-slate-400 dark:text-slate-500'
                     }
+                    ${isToday && !match ? 'ring-2 ring-blue-500/40 border-blue-500 dark:border-blue-400 shadow shadow-blue-500/10' : ''}
                   `}
                 >
                   <div className="text-[9px] font-extrabold uppercase text-right leading-none">
@@ -435,3 +571,4 @@ export const Tracker = () => {
   );
 };
 export default Tracker;
+

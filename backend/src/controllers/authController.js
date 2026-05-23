@@ -48,7 +48,8 @@ exports.register = async (req, res) => {
         preferenceReminders: true,
         preferenceDigest: true,
         preferenceWeeklyReport: true
-      }
+      },
+      streakStartDate: null
     };
 
     if (process.env.USE_LOCAL_JSON === 'true') {
@@ -77,6 +78,7 @@ exports.register = async (req, res) => {
           xp: newUser.xp,
           level: newUser.level,
           streak: newUser.streak,
+          streakStartDate: newUser.streakStartDate || null,
           emailPreferences: newUser.emailPreferences || {
             emailNotificationsEnabled: true,
             reminderTiming: 30,
@@ -141,6 +143,7 @@ exports.login = async (req, res) => {
           xp: user.xp,
           level: user.level,
           streak: user.streak,
+          streakStartDate: user.streakStartDate || null,
           emailPreferences: user.emailPreferences || {
             emailNotificationsEnabled: true,
             reminderTiming: 30,
@@ -182,6 +185,7 @@ exports.getProfile = async (req, res) => {
       xp: user.xp || 0,
       level: user.level || 1,
       streak: user.streak || 0,
+      streakStartDate: user.streakStartDate || null,
       emailPreferences: user.emailPreferences || {
         emailNotificationsEnabled: true,
         reminderTiming: 30,
@@ -199,7 +203,7 @@ exports.getProfile = async (req, res) => {
 
 // Update profile / settings
 exports.updateProfile = async (req, res) => {
-  const { name, theme, xp, level, streak, emailPreferences } = req.body;
+  const { name, theme, xp, level, streak, emailPreferences, streakStartDate } = req.body;
 
   try {
     const updates = {};
@@ -209,6 +213,7 @@ exports.updateProfile = async (req, res) => {
     if (level !== undefined) updates.level = level;
     if (streak !== undefined) updates.streak = streak;
     if (emailPreferences !== undefined) updates.emailPreferences = emailPreferences;
+    if (streakStartDate !== undefined) updates.streakStartDate = streakStartDate;
 
     let updatedUser = null;
 
@@ -234,6 +239,7 @@ exports.updateProfile = async (req, res) => {
       xp: updatedUser.xp,
       level: updatedUser.level,
       streak: updatedUser.streak,
+      streakStartDate: updatedUser.streakStartDate || null,
       emailPreferences: updatedUser.emailPreferences || {
         emailNotificationsEnabled: true,
         reminderTiming: 30,

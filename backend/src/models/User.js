@@ -41,6 +41,10 @@ const UserSchema = new mongoose.Schema({
     preferenceDigest: { type: Boolean, default: true },
     preferenceWeeklyReport: { type: Boolean, default: true }
   },
+  streakStartDate: {
+    type: String,
+    default: null,
+  },
   createdAt: {
     type: Date,
     default: Date.now,
