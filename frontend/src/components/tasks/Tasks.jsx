@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../store/AuthContext';
+import { useToast } from '../../store/ToastContext';
+import { TasksSkeleton } from '../ui/Skeleton';
 import { 
-  CheckSquare, 
   Square, 
   Trash2, 
   Plus, 
@@ -9,21 +10,19 @@ import {
   Pause, 
   RotateCcw,
   Sparkles, 
-  Tag, 
   Calendar,
-  AlertCircle,
   Search,
   Filter,
   Check,
-  ChevronDown,
-  ChevronUp,
   Flame,
   Clock,
-  Compass
+  Compass,
+  Zap
 } from 'lucide-react';
 
 export const Tasks = () => {
   const { apiFetch, user } = useAuth();
+  const { showToast } = useToast();
   
   // Tasks list state
   const [tasks, setTasks] = useState([]);
@@ -105,6 +104,7 @@ export const Tasks = () => {
       });
 
       setTasks(prev => [created, ...prev]);
+      showToast('Daily task added successfully!', 'success');
       
       // Reset form
       setTitle('');
@@ -114,10 +114,10 @@ export const Tasks = () => {
       setTagsInput('');
       setNotes('');
       
-      // Auto-trigger achievements update
       await checkSystemAchievements();
     } catch (err) {
       console.error('Error adding task:', err);
+      showToast('Failed to add task.', 'error');
     }
   };
 
@@ -144,8 +144,10 @@ export const Tasks = () => {
       
       setNlpInput('');
       setShowNlpBox(false);
+      showToast('AI magic: shorthand task parsed successfully!', 'success');
     } catch (err) {
       console.error('NLP Parse failed:', err);
+      showToast('NLP parsing failed, manual input mode active.', 'warning');
     } finally {
       setNlpParsing(false);
     }
@@ -156,12 +158,15 @@ export const Tasks = () => {
     try {
       await apiFetch(`/tasks/${taskId}`, { method: 'DELETE' });
       setTasks(prev => prev.filter(t => t._id !== taskId));
+      showToast('Task removed from backlog.', 'info');
+      
       if (activeFocusTaskId === taskId) {
         setActiveFocusTaskId(null);
         setTimerRunning(false);
       }
     } catch (err) {
       console.error('Error deleting task:', err);
+      showToast('Failed to delete task.', 'error');
     }
   };
 
@@ -169,6 +174,9 @@ export const Tasks = () => {
   const handleToggleComplete = async (task) => {
     const nextCompleted = !task.completed;
     try {
+      // Optimistic state updates
+      setTasks(prev => prev.map(t => t._id === task._id ? { ...t, completed: nextCompleted } : t));
+      
       const updated = await apiFetch(`/tasks/${task._id}`, {
         method: 'PUT',
         body: JSON.stringify({ completed: nextCompleted })
@@ -176,12 +184,15 @@ export const Tasks = () => {
       
       setTasks(prev => prev.map(t => t._id === task._id ? updated : t));
       
-      // Check for milestones if checked!
       if (nextCompleted) {
+        showToast('🎯 Goal complete! XP awarded.', 'success');
         await checkSystemAchievements();
+      } else {
+        showToast('Task status restored to active.', 'info');
       }
     } catch (err) {
       console.error('Toggle complete failed:', err);
+      showToast('Failed to toggle task.', 'error');
     }
   };
 
@@ -203,8 +214,10 @@ export const Tasks = () => {
 
       setTasks(prev => prev.map(t => t._id === taskId ? updated : t));
       setSubtaskInputs(prev => ({ ...prev, [taskId]: '' }));
+      showToast('Subtask added.', 'success');
     } catch (err) {
       console.error('Add subtask failed:', err);
+      showToast('Failed to add subtask.', 'error');
     }
   };
 
@@ -224,6 +237,7 @@ export const Tasks = () => {
       });
 
       setTasks(prev => prev.map(t => t._id === taskId ? updated : t));
+      showToast('Subtask status updated.', 'info');
     } catch (err) {
       console.error('Toggle subtask failed:', err);
     }
@@ -232,7 +246,10 @@ export const Tasks = () => {
   // XP achievements checker
   const checkSystemAchievements = async () => {
     try {
-      await apiFetch('/achievements/check', { method: 'POST' });
+      const response = await apiFetch('/achievements/check', { method: 'POST' });
+      if (response.unlocked && response.unlocked.length > 0) {
+        showToast('🏆 Milestone Achieved! Check achievements page.', 'success');
+      }
     } catch (err) {
       console.error('Achievements unlock check error:', err);
     }
@@ -243,8 +260,10 @@ export const Tasks = () => {
     if (timerRunning) {
       clearInterval(timerRef.current);
       setTimerRunning(false);
+      showToast('Pomodoro session paused.', 'info');
     } else {
       setTimerRunning(true);
+      showToast('Pomodoro session active. Keep focused!', 'success');
       timerRef.current = setInterval(() => {
         setTimerSeconds(prev => {
           if (prev <= 1) {
@@ -261,16 +280,14 @@ export const Tasks = () => {
     clearInterval(timerRef.current);
     setTimerRunning(false);
     
-    // Play subtle audio signal (optional mockup notification alert)
     try {
       const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-500.wav');
       audio.volume = 0.2;
       audio.play();
     } catch (_) {}
 
-    // Complete Pomodoro and reward XP!
     if (timerMode === 'focus') {
-      alert('🏆 Pomodoro Session Complete! Focused 25 minutes.');
+      showToast('🏆 Focus block complete! focused 25 minutes.', 'success');
       
       if (activeFocusTaskId) {
         const taskObj = tasks.find(t => t._id === activeFocusTaskId);
@@ -288,14 +305,12 @@ export const Tasks = () => {
         }
       }
       
-      // Auto-trigger achievements & Level awards
       await checkSystemAchievements();
       
-      // Swap to break
       setTimerMode('shortBreak');
       setTimerSeconds(300); // 5 min break
     } else {
-      alert('⏱️ Break complete! Let\'s return to deep focus.');
+      showToast('⏱️ Break complete! Ready to lock focus?', 'info');
       setTimerMode('focus');
       setTimerSeconds(1500); // 25 min focus
     }
@@ -304,6 +319,7 @@ export const Tasks = () => {
   const resetTimer = () => {
     clearInterval(timerRef.current);
     setTimerRunning(false);
+    showToast('Timer reset.', 'info');
     if (timerMode === 'focus') setTimerSeconds(1500);
     else if (timerMode === 'shortBreak') setTimerSeconds(300);
     else setTimerSeconds(900); // 15 min longBreak
@@ -326,19 +342,14 @@ export const Tasks = () => {
 
   // --- FILTERING AND SEARCH GRAPH LOGIC ---
   const filteredTasks = tasks.filter(task => {
-    // 1. Search filter
     const matchesSearch = task.title.toLowerCase().includes(search.toLowerCase()) || 
                           (task.notes && task.notes.toLowerCase().includes(search.toLowerCase()));
     
-    // 2. Tab filter
     let matchesTab = true;
     if (activeFilter === 'active') matchesTab = !task.completed;
     else if (activeFilter === 'completed') matchesTab = task.completed;
     else if (activeFilter === 'high') matchesTab = task.priority === 'high';
-    else if (activeFilter === 'medium') matchesTab = task.priority === 'medium';
-    else if (activeFilter === 'low') matchesTab = task.priority === 'low';
 
-    // 3. Category filter
     let matchesCategory = true;
     if (activeCategory !== 'all') {
       matchesCategory = task.category === activeCategory;
@@ -346,6 +357,11 @@ export const Tasks = () => {
 
     return matchesSearch && matchesTab && matchesCategory;
   });
+
+  // Render Skeleton view if loading is active
+  if (loading) {
+    return <TasksSkeleton />;
+  }
 
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -369,7 +385,7 @@ export const Tasks = () => {
         </button>
       </div>
 
-      {/* Grid: Task Creator / Parser on top or side, and Pomodoro + Backlog */}
+      {/* Grid: Task Creator / Parser, and Pomodoro + Backlog */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Left Column: Tasks Lists, Searches & Forms (Col span 2) */}
@@ -507,7 +523,7 @@ export const Tasks = () => {
                     className={`px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${
                       activeFilter === tab.filter
                         ? 'bg-blue-600 text-white shadow-sm'
-                        : 'bg-slate-100 hover:bg-slate-200 dark:bg-brand-800/40 dark:hover:bg-brand-700/60 text-slate-500 dark:text-slate-350'
+                        : 'bg-slate-100 hover:bg-slate-200 dark:bg-brand-800/40 dark:hover:bg-brand-700/60 text-slate-500 dark:text-slate-355'
                     }`}
                   >
                     {tab.name}
@@ -544,15 +560,11 @@ export const Tasks = () => {
 
           {/* Core Backlog Tasks Listings */}
           <div className="space-y-4">
-            {loading ? (
-              <div className="text-center py-12 text-slate-400 text-xs">
-                Synchronizing task backlog...
-              </div>
-            ) : filteredTasks.length === 0 ? (
-              <div className="text-center py-16 glass-card flex flex-col items-center justify-center text-slate-400 border-dashed">
+            {filteredTasks.length === 0 ? (
+              <div className="text-center py-16 glass-card flex flex-col items-center justify-center text-slate-400 border-dashed animate-fadeIn">
                 <Compass size={32} className="text-slate-300 dark:text-slate-700 mb-2 animate-spin [animation-duration:10s]" />
                 <p className="text-xs font-semibold">No tasks found matching your filter criteria.</p>
-                <p className="text-[10px] text-slate-400 mt-1 font-medium">Add a task or change active tab triggers to begin!</p>
+                <p className="text-[10px] text-slate-450 mt-1 font-medium">Add a task or change active tab triggers to begin!</p>
               </div>
             ) : (
               filteredTasks.map(task => (
@@ -588,7 +600,7 @@ export const Tasks = () => {
                         <h4 className={`font-bold text-sm tracking-tight ${
                           task.completed 
                             ? 'line-through text-slate-400' 
-                            : 'text-slate-800 dark:text-slate-100'
+                            : 'text-slate-800 dark:text-slate-105'
                         }`}>
                           {task.title}
                         </h4>
@@ -616,11 +628,14 @@ export const Tasks = () => {
                     {/* Delete and Active Focus selectors */}
                     <div className="flex items-center gap-1 shrink-0">
                       <button
-                        onClick={() => setActiveFocusTaskId(task._id)}
+                        onClick={() => {
+                          setActiveFocusTaskId(task._id);
+                          showToast('Active focus locked to task.', 'info');
+                        }}
                         className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1 transition-all ${
                           activeFocusTaskId === task._id
                             ? 'bg-orange-500/10 text-orange-500 border border-orange-500/20'
-                            : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                            : 'text-slate-400 hover:text-slate-650 dark:hover:text-slate-200'
                         }`}
                       >
                         <Flame size={12} />
@@ -640,10 +655,10 @@ export const Tasks = () => {
                   <div className="mt-4 pt-3 border-t border-slate-100 dark:border-brand-800/40">
                     <div className="space-y-2 pl-8">
                       {task.subtasks && task.subtasks.map((st, idx) => (
-                        <div key={idx} className="flex items-center justify-between text-xs py-1">
+                        <div key={idx} className="flex items-center justify-between text-xs py-1 animate-fadeIn">
                           <button 
                             onClick={() => handleToggleSubtask(task._id, idx)}
-                            className="flex items-center gap-2 text-slate-600 dark:text-slate-300 font-medium text-left"
+                            className="flex items-center gap-2 text-slate-650 dark:text-slate-300 font-medium text-left"
                           >
                             <span className="shrink-0 text-slate-400">
                               {st.completed ? <Check size={12} className="text-emerald-500 bg-emerald-500/10 rounded" /> : <div className="w-3 h-3 rounded-full border border-slate-300 dark:border-brand-600" />}
@@ -716,7 +731,7 @@ export const Tasks = () => {
             
             {/* Active task details if locked */}
             {activeFocusTaskId ? (
-              <div className="mt-3 bg-orange-500/5 border border-orange-500/15 rounded-xl p-2 px-3 flex items-center gap-1.5 text-[10px] text-orange-500 font-bold max-w-[200px] truncate">
+              <div className="mt-3 bg-orange-500/5 border border-orange-500/15 rounded-xl p-2 px-3 flex items-center gap-1.5 text-[10px] text-orange-500 font-bold max-w-[200px] truncate animate-fadeIn">
                 <Zap size={10} className="animate-bounce" />
                 <span>Target: {tasks.find(t => t._id === activeFocusTaskId)?.title}</span>
               </div>

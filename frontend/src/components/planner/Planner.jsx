@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../store/AuthContext';
+import { useToast } from '../../store/ToastContext';
+import { PlannerSkeleton } from '../ui/Skeleton';
 import { 
   Calendar, 
   Sparkles, 
@@ -8,12 +10,12 @@ import {
   ChevronLeft, 
   ChevronRight,
   Target,
-  AlertTriangle,
   FileText
 } from 'lucide-react';
 
 export const Planner = () => {
   const { apiFetch } = useAuth();
+  const { showToast } = useToast();
   
   // Weekly date offset management
   const [currentWeekMonday, setCurrentWeekMonday] = useState('');
@@ -40,7 +42,6 @@ export const Planner = () => {
   const [goalInputs, setGoalInputs] = useState({});
 
   useEffect(() => {
-    // Initialize Monday date string for current week
     const mondayStr = getMondayStr(new Date());
     setCurrentWeekMonday(mondayStr);
   }, []);
@@ -69,7 +70,6 @@ export const Planner = () => {
       setWeeklyFocus(data.weeklyFocus || '');
       setPriorityTasks(data.priorityTasks || []);
       
-      // Ensure we merge standard schedule array templates
       if (data.schedule && data.schedule.length > 0) {
         setSchedule(data.schedule);
       } else {
@@ -78,7 +78,7 @@ export const Planner = () => {
           { day: 'Tuesday', goals: [], focus: '' },
           { day: 'Wednesday', goals: [], focus: '' },
           { day: 'Thursday', goals: [], focus: '' },
-          { day: 'Friday', rounded: true, goals: [], focus: '' },
+          { day: 'Friday', goals: [], focus: '' },
           { day: 'Saturday', goals: [], focus: '' },
           { day: 'Sunday', goals: [], focus: '' },
         ]);
@@ -105,8 +105,10 @@ export const Planner = () => {
         method: 'POST',
         body: JSON.stringify(payload)
       });
+      showToast('Weekly schedule updated.', 'success');
     } catch (err) {
       console.error('Error saving weekly planner:', err);
+      showToast('Failed to sync plan.', 'error');
     } finally {
       setSaving(false);
     }
@@ -193,6 +195,10 @@ export const Planner = () => {
     return `${mon.toLocaleDateString('en-US', opt)} — ${sun.toLocaleDateString('en-US', opt)}`;
   };
 
+  if (loading) {
+    return <PlannerSkeleton />;
+  }
+
   return (
     <div className="space-y-8 animate-fadeIn">
       {/* Header and Week Switcher bar */}
@@ -247,7 +253,7 @@ export const Planner = () => {
               onBlur={() => handleSavePlan({ weeklyFocus })}
               className="glass-input text-xs h-24 placeholder:text-slate-400 focus:bg-white dark:focus:bg-brand-800/80 resize-none leading-relaxed"
             />
-            {saving && <span className="text-[9px] text-blue-500 font-semibold mt-2 self-end animate-pulse">Autosaving...</span>}
+            {saving && <span className="text-[9px] text-blue-500 font-semibold mt-2 self-end animate-pulse">Syncing plan...</span>}
           </div>
 
           {/* Box 2: Weekly Priority Checklist */}
@@ -280,7 +286,7 @@ export const Planner = () => {
                 <p className="text-[10px] text-slate-400 font-medium">No priority notes added yet.</p>
               ) : (
                 priorityTasks.map((t, idx) => (
-                  <div key={idx} className="p-2 px-3 rounded-xl bg-slate-50 dark:bg-brand-800/40 border border-slate-150 dark:border-brand-700/20 flex items-center justify-between gap-2">
+                  <div key={idx} className="p-2 px-3 rounded-xl bg-slate-50 dark:bg-brand-800/40 border border-slate-150 dark:border-brand-700/20 flex items-center justify-between gap-2 animate-fadeIn">
                     <span className="text-[11px] text-slate-700 dark:text-slate-350 truncate">{t}</span>
                     <button 
                       onClick={() => handleRemovePriority(idx)}
@@ -323,71 +329,65 @@ export const Planner = () => {
               </div>
             </div>
 
-            {loading ? (
-              <div className="text-center py-12 text-slate-400 text-xs">
-                Syncing week planner...
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {schedule.map((dayObj) => (
-                  <div 
-                    key={dayObj.day} 
-                    className="p-4 rounded-2xl bg-slate-50 dark:bg-brand-850/40 border border-slate-200/40 dark:border-brand-800/40 flex flex-col justify-between min-h-[220px]"
-                  >
-                    <div>
-                      {/* Day Title bar */}
-                      <div className="flex items-center justify-between pb-3 border-b border-slate-200/50 dark:border-brand-800/40 mb-3">
-                        <span className="font-extrabold text-sm text-slate-800 dark:text-slate-200">{dayObj.day}</span>
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                      </div>
-
-                      {/* Daily Focus description input */}
-                      <input
-                        type="text"
-                        placeholder="Daily theme focus..."
-                        value={dayObj.focus || ''}
-                        onChange={(e) => handleUpdateFocus(dayObj.day, e.target.value)}
-                        onBlur={() => handleSavePlan({ schedule })}
-                        className="w-full bg-transparent text-[11px] text-slate-600 dark:text-slate-350 focus:outline-none placeholder:text-slate-400 italic mb-3 block"
-                      />
-
-                      {/* Goals list */}
-                      <div className="space-y-2 max-h-[110px] overflow-y-auto pr-1">
-                        {dayObj.goals && dayObj.goals.map((g, idx) => (
-                          <div key={idx} className="flex items-start justify-between gap-2 text-[10px] font-semibold text-slate-700 dark:text-slate-400 group">
-                            <span className="leading-tight">• {g}</span>
-                            <button
-                              onClick={() => handleRemoveGoal(dayObj.day, idx)}
-                              className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                            >
-                              <X size={10} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {schedule.map((dayObj) => (
+                <div 
+                  key={dayObj.day} 
+                  className="p-4 rounded-2xl bg-slate-50 dark:bg-brand-850/40 border border-slate-200/40 dark:border-brand-800/40 flex flex-col justify-between min-h-[220px] animate-fadeIn"
+                >
+                  <div>
+                    {/* Day Title bar */}
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-200/50 dark:border-brand-800/40 mb-3">
+                      <span className="font-extrabold text-sm text-slate-800 dark:text-slate-200">{dayObj.day}</span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
                     </div>
 
-                    {/* Goal Add form inside card */}
-                    <div className="flex gap-1.5 pt-4 mt-2 border-t border-slate-200/40 dark:border-brand-800/20">
-                      <input
-                        type="text"
-                        placeholder="Add goal..."
-                        value={goalInputs[dayObj.day] || ''}
-                        onChange={(e) => setGoalInputs(prev => ({ ...prev, [dayObj.day]: e.target.value }))}
-                        className="glass-input py-1 px-2.5 text-[10px] bg-white/70 dark:bg-brand-900/40"
-                      />
-                      <button
-                        onClick={() => handleAddGoal(dayObj.day)}
-                        className="px-2.5 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold rounded-lg shrink-0 active:scale-95 transition-all"
-                      >
-                        Add
-                      </button>
-                    </div>
+                    {/* Daily Focus description input */}
+                    <input
+                      type="text"
+                      placeholder="Daily theme focus..."
+                      value={dayObj.focus || ''}
+                      onChange={(e) => handleUpdateFocus(dayObj.day, e.target.value)}
+                      onBlur={() => handleSavePlan({ schedule })}
+                      className="w-full bg-transparent text-[11px] text-slate-600 dark:text-slate-355 focus:outline-none placeholder:text-slate-400 italic mb-3 block"
+                    />
 
+                    {/* Goals list */}
+                    <div className="space-y-2 max-h-[110px] overflow-y-auto pr-1">
+                      {dayObj.goals && dayObj.goals.map((g, idx) => (
+                        <div key={idx} className="flex items-start justify-between gap-2 text-[10px] font-semibold text-slate-700 dark:text-slate-400 group animate-fadeIn">
+                          <span className="leading-tight">• {g}</span>
+                          <button
+                            onClick={() => handleRemoveGoal(dayObj.day, idx)}
+                            className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                          >
+                            <X size={10} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
-              </div>
-            )}
+
+                  {/* Goal Add form inside card */}
+                  <div className="flex gap-1.5 pt-4 mt-2 border-t border-slate-200/40 dark:border-brand-800/20">
+                    <input
+                      type="text"
+                      placeholder="Add goal..."
+                      value={goalInputs[dayObj.day] || ''}
+                      onChange={(e) => setGoalInputs(prev => ({ ...prev, [dayObj.day]: e.target.value }))}
+                      className="glass-input py-1 px-2.5 text-[10px] bg-white/70 dark:bg-brand-900/40"
+                    />
+                    <button
+                      onClick={() => handleAddGoal(dayObj.day)}
+                      className="px-2.5 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold rounded-lg shrink-0 active:scale-95 transition-all"
+                    >
+                      Add
+                    </button>
+                  </div>
+
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 

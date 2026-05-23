@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../store/AuthContext';
+import { useToast } from '../../store/ToastContext';
+import { TrackerSkeleton } from '../ui/Skeleton';
 import { 
   CalendarDays, 
   Flame, 
@@ -14,6 +16,7 @@ import {
 
 export const Tracker = () => {
   const { apiFetch, user, updateProfile } = useAuth();
+  const { showToast } = useToast();
   
   // Logs state
   const [logs, setLogs] = useState([]);
@@ -47,6 +50,7 @@ export const Tracker = () => {
       calculateMetrics(data);
     } catch (err) {
       console.error('Error fetching tracker logs:', err);
+      showToast('Offline fallback: seeding daily grids.', 'info');
     } finally {
       setLoading(false);
     }
@@ -80,14 +84,12 @@ export const Tracker = () => {
       return;
     }
 
-    // Sort by date ascending
     const sorted = [...logList].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
     let longest = 0;
     let current = 0;
     let activeRun = 0;
 
-    // Calculate streaks
     sorted.forEach((log) => {
       if (log.status === 'productive') {
         activeRun++;
@@ -99,7 +101,6 @@ export const Tracker = () => {
       }
     });
 
-    // Determine current active streak ending today or yesterday
     const todayStr = new Date().toISOString().split('T')[0];
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
@@ -109,7 +110,6 @@ export const Tracker = () => {
     const yesterdayLog = sorted.find(l => l.date === yesterdayStr);
 
     if (todayLog && todayLog.status === 'productive') {
-      // search backward from today
       let run = 0;
       let checkDate = new Date();
       while (true) {
@@ -124,7 +124,6 @@ export const Tracker = () => {
       }
       current = run;
     } else if (yesterdayLog && yesterdayLog.status === 'productive') {
-      // search backward from yesterday
       let run = 0;
       let checkDate = new Date();
       checkDate.setDate(checkDate.getDate() - 1);
@@ -146,17 +145,14 @@ export const Tracker = () => {
     setCurrentStreak(current);
     setLongestStreak(longest || current);
 
-    // Calculate success percentage
     const productiveCount = logList.filter(l => l.status === 'productive').length;
     setSuccessRate(Math.round((productiveCount / logList.length) * 100));
 
-    // Sync streak with Auth Context user profile
     if (user && user.streak !== current) {
       updateProfile({ streak: current });
     }
   };
 
-  // Click handler to toggle or edit status
   const handleDateClick = (dayObj) => {
     const existing = logs.find(l => l.date === dayObj.dateStr);
     setSelectedDayObj({
@@ -199,17 +195,25 @@ export const Tracker = () => {
       setLogs(updatedLogs);
       calculateMetrics(updatedLogs);
       
-      // Auto-trigger weekly reviews caching
       const newAnal = await apiFetch('/analytics');
       setAnalytics(newAnal);
 
       setSelectedDayObj(null);
+      showToast('Daily log updated successfully!', 'success');
+      
+      // Auto achievements update
+      await apiFetch('/achievements/check', { method: 'POST' });
     } catch (err) {
       console.error('Error logging daily progress:', err);
+      showToast('Failed to save progress log.', 'error');
     } finally {
       setSubmitting(false);
     }
   };
+
+  if (loading) {
+    return <TrackerSkeleton />;
+  }
 
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -230,7 +234,7 @@ export const Tracker = () => {
         <div className="glass-card flex items-center justify-between p-5 relative overflow-hidden">
           <div>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Current Streak</span>
-            <span className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 mt-1 block">
+            <span className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 mt-1 block font-mono">
               {currentStreak} <span className="text-xs font-semibold text-slate-400 uppercase">Days</span>
             </span>
             <span className="text-[10px] text-slate-400 mt-1 block font-medium">Auto-synced profile metric</span>
@@ -244,7 +248,7 @@ export const Tracker = () => {
         <div className="glass-card flex items-center justify-between p-5 relative overflow-hidden">
           <div>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Longest Streak</span>
-            <span className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 mt-1 block">
+            <span className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 mt-1 block font-mono">
               {longestStreak} <span className="text-xs font-semibold text-slate-400 uppercase">Days</span>
             </span>
             <span className="text-[10px] text-slate-400 mt-1 block font-medium">All-time record</span>
@@ -258,7 +262,7 @@ export const Tracker = () => {
         <div className="glass-card flex items-center justify-between p-5 relative overflow-hidden">
           <div>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Consistency Rate</span>
-            <span className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 mt-1 block">
+            <span className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 mt-1 block font-mono">
               {logs.length > 0 ? `${successRate}%` : '0%'}
             </span>
             <span className="text-[10px] text-slate-400 mt-1 block font-medium">{logs.length} days logged</span>
@@ -274,7 +278,7 @@ export const Tracker = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Heatmap grid block (Col span 2) */}
-        <div className="lg:col-span-2 glass-card">
+        <div className="lg:col-span-2 glass-card animate-fadeIn">
           <div className="flex items-center justify-between mb-6">
             <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <CalendarDays size={18} className="text-blue-500" />
@@ -295,7 +299,7 @@ export const Tracker = () => {
                   onClick={() => handleDateClick(day)}
                   title={`${day.label}: ${match ? match.status : 'No record'}`}
                   className={`
-                    aspect-square rounded-2xl flex flex-col justify-between p-2 cursor-pointer transition-all duration-150 hover:scale-105 active:scale-95 border
+                    aspect-square rounded-2xl flex flex-col justify-between p-2 cursor-pointer transition-all duration-155 hover:scale-105 active:scale-95 border
                     ${match 
                       ? match.status === 'productive'
                         ? 'bg-gradient-to-br from-emerald-500/25 to-emerald-500/10 border-emerald-500/30 text-emerald-500 dark:text-emerald-400 shadow-sm shadow-emerald-500/5'
@@ -385,7 +389,7 @@ export const Tracker = () => {
 
                 <button
                   onClick={() => setSelectedDayObj(null)}
-                  className="w-full text-center text-[10px] font-bold text-slate-400 hover:text-slate-300 uppercase tracking-wider mt-1"
+                  className="w-full text-center text-[10px] font-bold text-slate-400 hover:text-slate-350 uppercase tracking-wider mt-1"
                 >
                   Cancel
                 </button>

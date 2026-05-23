@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../store/AuthContext';
+import { useToast } from '../../store/ToastContext';
+import { DashboardSkeleton } from '../ui/Skeleton';
 import { 
   Flame, 
   CheckCircle, 
@@ -17,13 +19,12 @@ import {
   XAxis, 
   YAxis, 
   Tooltip, 
-  ResponsiveContainer,
-  BarChart,
-  Bar
+  ResponsiveContainer
 } from 'recharts';
 
 export const Dashboard = () => {
   const { apiFetch, user } = useAuth();
+  const { showToast } = useToast();
   
   // Dashboard states
   const [analytics, setAnalytics] = useState(null);
@@ -47,11 +48,11 @@ export const Dashboard = () => {
   const [currentQuote, setCurrentQuote] = useState(quotes[0]);
 
   useEffect(() => {
-    // Select a random quote for this session
     setCurrentQuote(quotes[Math.floor(Math.random() * quotes.length)]);
     
     const fetchDashboardData = async () => {
       try {
+        setLoading(true);
         const analyticsData = await apiFetch('/analytics');
         setAnalytics(analyticsData);
         
@@ -59,6 +60,7 @@ export const Dashboard = () => {
         setTasks(tasksData);
       } catch (err) {
         console.error('Error seeding dashboard data:', err);
+        showToast('Running in offline sandbox mode.', 'info');
       } finally {
         setLoading(false);
       }
@@ -73,12 +75,14 @@ export const Dashboard = () => {
       setTodayFocus(focusInput.trim());
       localStorage.setItem('dy_today_focus', focusInput.trim());
       setFocusInput('');
+      showToast('Daily priority focus set successfully!', 'success');
     }
   };
 
   const handleClearFocus = () => {
     setTodayFocus('');
     localStorage.removeItem('dy_today_focus');
+    showToast('Daily focus cleared.', 'info');
   };
 
   const handleSendChat = async (e) => {
@@ -103,15 +107,9 @@ export const Dashboard = () => {
     }
   };
 
+  // Render Skeleton Loader if loading is active!
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-brand-950">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-600 rounded-full animate-spin" />
-          <span className="text-sm font-semibold text-slate-500">Synchronizing workspace...</span>
-        </div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   const completedTasksCount = tasks.filter(t => t.completed).length;
@@ -191,7 +189,6 @@ export const Dashboard = () => {
             </span>
             <span className="text-[10px] text-slate-400 mt-2 block font-medium">Weekly average score</span>
           </div>
-          {/* Radial score representation */}
           <div className="w-16 h-16 rounded-full border-4 border-slate-200 dark:border-brand-800 flex items-center justify-center shrink-0 relative">
             <div className="absolute inset-0 rounded-full border-4 border-blue-600" style={{ clipPath: `polygon(0 0, 100% 0, 100% ${analytics?.focusScore || 50}%, 0 ${analytics?.focusScore || 50}%)` }} />
             <Zap size={22} className="text-blue-500" />
@@ -283,7 +280,7 @@ export const Dashboard = () => {
               <Sparkles size={16} />
             </div>
             <div>
-              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">AI Coach Mentor</h4>
+              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-205">AI Coach Mentor</h4>
               <p className="text-[10px] text-emerald-500 font-semibold tracking-wide flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping inline-block" />
                 <span>Default Provider: Gemini AI</span>
@@ -299,7 +296,7 @@ export const Dashboard = () => {
                 className={`p-3 rounded-2xl max-w-[85%] leading-relaxed ${
                   msg.sender === 'user' 
                     ? 'ml-auto bg-blue-600 text-white rounded-br-none' 
-                    : 'bg-slate-100 dark:bg-brand-800/50 text-slate-700 dark:text-slate-300 rounded-bl-none border border-slate-200/20'
+                    : 'bg-slate-100 dark:bg-brand-800/50 text-slate-700 dark:text-slate-350 rounded-bl-none border border-slate-205/20'
                 }`}
               >
                 {msg.text}
@@ -364,3 +361,4 @@ export const Dashboard = () => {
     </div>
   );
 };
+export default Dashboard;

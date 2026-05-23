@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../store/AuthContext';
+import { useToast } from '../../store/ToastContext';
 import { 
   Award, 
   Flame, 
@@ -14,7 +15,8 @@ import {
 import confetti from 'canvas-confetti';
 
 export const Achievements = () => {
-  const { apiFetch, user, updateProfile } = useAuth();
+  const { apiFetch, user } = useAuth();
+  const { showToast } = useToast();
   
   // Achievements list states
   const [achievements, setAchievements] = useState([]);
@@ -60,24 +62,22 @@ export const Achievements = () => {
       const response = await apiFetch('/achievements/check', { method: 'POST' });
       
       if (response.unlocked && response.unlocked.length > 0) {
-        // Confetti explosion!
         triggerConfettiExplosion();
         
-        // Notify
         const unlockedTitles = response.unlocked.map(a => a.title).join(', ');
-        alert(`🏆 Achievement Unlocked: ${unlockedTitles}! Gained +${response.xpGained} XP!`);
+        showToast(`🏆 Badges Unlocked: ${unlockedTitles}!`, 'success');
         
         if (response.leveledUp) {
-          alert(`⚡ LEVEL UP! You reached Level ${response.newLevel}!`);
+          showToast(`⚡ LEVEL UP! You reached Level ${response.newLevel}!`, 'success');
         }
 
-        // Refresh lists
         await fetchAchievements();
       } else {
-        alert('ℹ️ backlogs checked! No new milestones unlocked today. Keep completing tasks!');
+        showToast('No new milestones unlocked today. Keep focused!', 'info');
       }
     } catch (err) {
       console.error('Check milestones failed:', err);
+      showToast('Error syncing achievements.', 'error');
     } finally {
       setChecking(false);
     }
@@ -91,7 +91,6 @@ export const Achievements = () => {
     });
   };
 
-  // Maps Lucide Icons dynamically based on saved strings
   const getBadgeIcon = (iconName) => {
     switch (iconName) {
       case 'CheckCircle': return CheckCircle;
@@ -102,18 +101,16 @@ export const Achievements = () => {
     }
   };
 
-  // XP level formulas helper
   const currentXp = user?.xp || 0;
   const currentLevel = user?.level || 1;
   
-  // Level threshold: 500 XP per level
   const baseLevelXp = (currentLevel - 1) * 500;
   const levelProgressXp = currentXp - baseLevelXp;
   const progressPercent = Math.min(Math.round((levelProgressXp / 500) * 100), 100);
 
   return (
     <div className="space-y-8 animate-fadeIn">
-      {/* Header and Manual Check trigger */}
+      {/* Header and Manual Check */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white font-sans tracking-tight">
@@ -134,10 +131,10 @@ export const Achievements = () => {
         </button>
       </div>
 
-      {/* Grid: Level XP progress bar and basic statistics */}
+      {/* Grid: Level XP progress bar and statistics */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* Left Column: XP bar and Milestones grid (Col span 2) */}
+        {/* Left Column: XP bar and Milestones grid */}
         <div className="lg:col-span-2 space-y-6">
           
           {/* Level Progress Visualizer */}
@@ -149,7 +146,7 @@ export const Achievements = () => {
             <div className="flex items-center gap-4 justify-between mb-4">
               <div>
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Developer Level</span>
-                <h3 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 font-sans tracking-tight">
+                <h3 className="text-2xl font-extrabold text-slate-800 dark:text-white font-sans tracking-tight">
                   Level {currentLevel} <span className="text-xs font-semibold text-slate-400">({currentXp} total XP)</span>
                 </h3>
               </div>
@@ -158,7 +155,6 @@ export const Achievements = () => {
               </span>
             </div>
 
-            {/* Glowing bar */}
             <div className="w-full h-3 bg-slate-200 dark:bg-brand-800/80 rounded-full overflow-hidden">
               <div 
                 className="h-full bg-gradient-to-r from-blue-600 to-indigo-500 shadow shadow-blue-500/50 rounded-full transition-all duration-500 ease-out"
@@ -234,7 +230,7 @@ export const Achievements = () => {
           <div className="glass-card flex flex-col justify-between min-h-[140px] relative overflow-hidden">
             <div>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Accumulated Badges</span>
-              <span className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 mt-1 block">
+              <span className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 mt-1 block font-mono">
                 {unlockedCount} <span className="text-xs font-semibold text-slate-400">/ {achievements.length} unlocked</span>
               </span>
               <span className="text-[10px] text-slate-400 mt-1 block font-medium">milestone completions total</span>
@@ -247,7 +243,7 @@ export const Achievements = () => {
           <div className="glass-card flex flex-col justify-between min-h-[140px] relative overflow-hidden">
             <div>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">XP Gained from Badges</span>
-              <span className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 mt-1 block">
+              <span className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 mt-1 block font-mono">
                 {totalXpReward} <span className="text-xs font-semibold text-slate-400">XP</span>
               </span>
               <span className="text-[10px] text-slate-400 mt-1 block font-medium">all-time bonus reward</span>

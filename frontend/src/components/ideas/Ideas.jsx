@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../store/AuthContext';
+import { useToast } from '../../store/ToastContext';
 import { 
   Lightbulb, 
   Plus, 
@@ -17,6 +18,7 @@ import {
 
 export const Ideas = () => {
   const { apiFetch } = useAuth();
+  const { showToast } = useToast();
   
   // Ideas notes lists
   const [ideas, setIdeas] = useState([]);
@@ -54,7 +56,7 @@ export const Ideas = () => {
       }
     } catch (err) {
       console.error('Error fetching ideas:', err);
-      setError('Unable to fetch ideas dump. Operating in local sandbox.');
+      showToast('Running in offline sandbox.', 'info');
     } finally {
       setLoading(false);
     }
@@ -93,16 +95,18 @@ export const Ideas = () => {
 
   const toggleRecording = () => {
     if (!recognition) {
-      alert('🎙️ Speech Recognition is not supported in your browser. Try Google Chrome!');
+      showToast('Speech Recognition not supported in this browser.', 'warning');
       return;
     }
 
     if (isRecording) {
       recognition.stop();
       setIsRecording(false);
+      showToast('Voice dictation paused.', 'info');
     } else {
       recognition.start();
       setIsRecording(true);
+      showToast('Voice dictation active. Speak clearly!', 'success');
     }
   };
 
@@ -130,11 +134,12 @@ export const Ideas = () => {
 
       setIdeas(prev => [created, ...prev]);
       selectIdea(created);
+      showToast('Brainstorm note draft created.', 'success');
       
-      // Auto-unlock achievements trigger
       await apiFetch('/achievements/check', { method: 'POST' });
     } catch (err) {
       console.error('Error creating new idea:', err);
+      showToast('Failed to create note.', 'error');
     }
   };
 
@@ -160,8 +165,8 @@ export const Ideas = () => {
       });
 
       setIdeas(prev => prev.map(i => i._id === activeIdeaId ? updated : i));
+      showToast('Note autosaved.', 'success');
       
-      // Trigger achievements
       await apiFetch('/achievements/check', { method: 'POST' });
     } catch (err) {
       console.error('Error saving idea:', err);
@@ -176,6 +181,7 @@ export const Ideas = () => {
       await apiFetch(`/ideas/${ideaId}`, { method: 'DELETE' });
       const filtered = ideas.filter(i => i._id !== ideaId);
       setIdeas(filtered);
+      showToast('Note permanently deleted.', 'info');
       
       if (activeIdeaId === ideaId) {
         if (filtered.length > 0) {
@@ -190,36 +196,30 @@ export const Ideas = () => {
       }
     } catch (err) {
       console.error('Error deleting idea:', err);
+      showToast('Failed to delete note.', 'error');
     }
   };
 
-  // Basic custom markdown to HTML converter for dual-pane previews
   const renderMarkdown = (text) => {
-    if (!text) return '<p className="text-slate-400 italic">No notes written. Start typing!</p>';
+    if (!text) return '<p class="text-slate-400 italic">No notes written. Start typing!</p>';
     
     let html = text;
-    // Sanitize basic tags
     html = html.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     
-    // Headers (# to ###)
     html = html.replace(/^### (.*$)/gim, '<h6 class="font-bold text-xs mt-3 mb-1 text-slate-800 dark:text-slate-100">$1</h6>');
     html = html.replace(/^## (.*$)/gim, '<h5 class="font-bold text-sm mt-4 mb-1.5 text-slate-800 dark:text-slate-100">$1</h5>');
     html = html.replace(/^# (.*$)/gim, '<h4 class="font-extrabold text-base mt-5 mb-2.5 text-slate-800 dark:text-slate-100 border-b border-slate-200/50 dark:border-brand-800/40 pb-1.5">$1</h4>');
     
-    // Bold / Italic
     html = html.replace(/\*\*(.*)\*\*/gim, '<strong class="font-bold text-slate-900 dark:text-white">$1</strong>');
-    html = html.replace(/\*(.*)\*/gim, '<em class="italic text-slate-700 dark:text-slate-350">$1</em>');
+    html = html.replace(/\*(.*)\*/gim, '<em class="italic text-slate-700 dark:text-slate-355">$1</em>');
     
-    // Lists (- to bullets)
     html = html.replace(/^\- (.*$)/gim, '<li class="ml-4 list-disc text-slate-650 dark:text-slate-350 py-0.5">$1</li>');
     
-    // Break lines
     html = html.replace(/\n/gim, '<br />');
 
     return `<div class="space-y-1 text-slate-700 dark:text-slate-300 font-medium leading-relaxed">${html}</div>`;
   };
 
-  // Filters logic
   const filteredIdeas = ideas.filter(idea => {
     const matchesSearch = idea.title.toLowerCase().includes(search.toLowerCase()) || 
                           idea.content.toLowerCase().includes(search.toLowerCase());
@@ -247,7 +247,7 @@ export const Ideas = () => {
         
         <button
           onClick={handleCreateNewIdea}
-          className="glass-btn-primary flex items-center gap-1.5 text-xs font-bold shrink-0 shadow-md shadow-blue-500/20 animate-pulse"
+          className="glass-btn-primary flex items-center gap-1.5 text-xs font-bold shrink-0 shadow-md shadow-blue-500/20"
         >
           <Plus size={14} />
           <span>Capture New Note</span>
@@ -257,9 +257,8 @@ export const Ideas = () => {
       {/* Editor & Notes list Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         
-        {/* Left Column: Notes directory sidebar (Col span 1) */}
+        {/* Left Column: Notes directory sidebar */}
         <div className="space-y-4 lg:col-span-1">
-          {/* Search box */}
           <div className="relative">
             <Search size={16} className="absolute left-3.5 top-3 text-slate-400" />
             <input
@@ -271,7 +270,6 @@ export const Ideas = () => {
             />
           </div>
 
-          {/* Category Quick Filter strip */}
           <div className="flex flex-wrap items-center gap-1.5 pb-2 border-b border-slate-200/50 dark:border-brand-800/30">
             {[
               { name: 'All', key: 'all' },
@@ -285,7 +283,7 @@ export const Ideas = () => {
                 className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all ${
                   activeCategory === cat.key
                     ? 'bg-blue-500/10 text-blue-500 dark:text-blue-400'
-                    : 'text-slate-400 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                    : 'text-slate-400 dark:text-slate-400 hover:text-slate-650 dark:hover:text-slate-200'
                 }`}
               >
                 {cat.name}
@@ -324,7 +322,7 @@ export const Ideas = () => {
                         <Trash2 size={12} />
                       </button>
                     </div>
-                    <h4 className="font-extrabold text-xs text-slate-800 dark:text-slate-200 truncate leading-snug">
+                    <h4 className="font-extrabold text-xs text-slate-850 dark:text-slate-200 truncate leading-snug">
                       {idea.title || 'Untitled Idea Note'}
                     </h4>
                   </div>
@@ -339,12 +337,11 @@ export const Ideas = () => {
           </div>
         </div>
 
-        {/* Right Columns: Dual Pane rich editor & live renderer (Col span 3) */}
+        {/* Right Columns: Dual Pane rich editor */}
         <div className="lg:col-span-3 space-y-4">
           {activeIdeaId ? (
-            <div className="glass-card flex flex-col justify-between min-h-[440px] rounded-2xl">
+            <div className="glass-card flex flex-col justify-between min-h-[440px] rounded-2xl animate-fadeIn">
               
-              {/* Form Input title and options bar */}
               <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between border-b border-slate-200/50 dark:border-brand-800/30 pb-4 mb-4">
                 <input
                   type="text"
@@ -356,7 +353,6 @@ export const Ideas = () => {
                 />
 
                 <div className="flex items-center gap-2 shrink-0">
-                  {/* Category select */}
                   <select
                     value={category}
                     onChange={(e) => {
@@ -371,7 +367,6 @@ export const Ideas = () => {
                     <option value="creative">🎨 Creative</option>
                   </select>
 
-                  {/* Save button */}
                   <button
                     onClick={handleSaveIdea}
                     className="p-2 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-xl hover:bg-emerald-500/20 active:scale-95 transition-all text-[10px] font-extrabold flex items-center gap-1"
@@ -382,7 +377,6 @@ export const Ideas = () => {
                 </div>
               </div>
 
-              {/* Editor controls & Mode Switcher tabs */}
               <div className="flex items-center justify-between mb-3">
                 <div className="flex gap-1.5 bg-slate-100 dark:bg-brand-800/40 border border-slate-200/50 dark:border-brand-800/50 rounded-2xl p-1 shrink-0">
                   <button
@@ -410,7 +404,6 @@ export const Ideas = () => {
                   </button>
                 </div>
 
-                {/* Voice Dictation control */}
                 <button
                   onClick={toggleRecording}
                   className={`p-2 rounded-xl text-[10px] font-bold flex items-center gap-1.5 transition-all border ${
@@ -424,7 +417,6 @@ export const Ideas = () => {
                 </button>
               </div>
 
-              {/* Core Text Input or HTML rendering output */}
               <div className="flex-1">
                 {activeTab === 'edit' ? (
                   <textarea
@@ -442,7 +434,6 @@ export const Ideas = () => {
                 )}
               </div>
 
-              {/* Tags Input panel footer */}
               <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-200/40 dark:border-brand-800/20">
                 <Tag size={12} className="text-slate-400 shrink-0" />
                 <input
@@ -451,14 +442,14 @@ export const Ideas = () => {
                   value={tagsInput}
                   onChange={(e) => setTagsInput(e.target.value)}
                   onBlur={handleSaveIdea}
-                  className="bg-transparent text-[10px] text-slate-500 dark:text-slate-350 focus:outline-none placeholder:text-slate-450 w-full"
+                  className="bg-transparent text-[10px] text-slate-505 focus:outline-none placeholder:text-slate-450 w-full"
                 />
               </div>
 
             </div>
           ) : (
             <div className="glass-card flex flex-col items-center justify-center text-center py-24 rounded-2xl">
-              <Lightbulb size={36} className="text-slate-300 dark:text-slate-700 animate-pulse mb-3" />
+              <Lightbulb size={36} className="text-slate-350 dark:text-slate-700 animate-pulse mb-3" />
               <h4 className="font-extrabold text-sm text-slate-800 dark:text-slate-200 font-sans tracking-tight">No Note Selected</h4>
               <p className="text-xs text-slate-450 mt-1 font-medium max-w-xs leading-normal">
                 Click any note in the left column list directory, or capture a new note to start brainstorming!

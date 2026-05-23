@@ -2,6 +2,8 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './store/AuthContext';
 import { ThemeProvider } from './store/ThemeContext';
+import { ToastProvider } from './store/ToastContext';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 
 // Import View Components
 import { Login } from './components/auth/Login';
@@ -47,29 +49,33 @@ const CoreLayout = ({ children }) => {
 
 export const App = () => {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <ThemeProvider>
-          <Routes>
-            {/* Public Entry Portals */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <ToastProvider>
+            <ThemeProvider>
+              <Routes>
+                {/* Public Entry Portals */}
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
 
-            {/* Authenticated Dashboard Systems */}
-            <Route path="/" element={<PrivateRoute><CoreLayout><Dashboard /></CoreLayout></PrivateRoute>} />
-            <Route path="/tasks" element={<PrivateRoute><CoreLayout><Tasks /></CoreLayout></PrivateRoute>} />
-            <Route path="/tracker" element={<PrivateRoute><CoreLayout><Tracker /></CoreLayout></PrivateRoute>} />
-            <Route path="/planner" element={<PrivateRoute><CoreLayout><Planner /></CoreLayout></PrivateRoute>} />
-            <Route path="/ideas" element={<PrivateRoute><CoreLayout><Ideas /></CoreLayout></PrivateRoute>} />
-            <Route path="/achievements" element={<PrivateRoute><CoreLayout><Achievements /></CoreLayout></PrivateRoute>} />
-            <Route path="/settings" element={<PrivateRoute><CoreLayout><Settings /></CoreLayout></PrivateRoute>} />
+                {/* Authenticated Dashboard Systems */}
+                <Route path="/" element={<PrivateRoute><CoreLayout><Dashboard /></CoreLayout></PrivateRoute>} />
+                <Route path="/tasks" element={<PrivateRoute><CoreLayout><Tasks /></CoreLayout></PrivateRoute>} />
+                <Route path="/tracker" element={<PrivateRoute><CoreLayout><Tracker /></CoreLayout></PrivateRoute>} />
+                <Route path="/planner" element={<PrivateRoute><CoreLayout><Planner /></CoreLayout></PrivateRoute>} />
+                <Route path="/ideas" element={<PrivateRoute><CoreLayout><Ideas /></CoreLayout></PrivateRoute>} />
+                <Route path="/achievements" element={<PrivateRoute><CoreLayout><Achievements /></CoreLayout></PrivateRoute>} />
+                <Route path="/settings" element={<PrivateRoute><CoreLayout><Settings /></CoreLayout></PrivateRoute>} />
 
-            {/* Default Catch-All */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </ThemeProvider>
-      </AuthProvider>
-    </BrowserRouter>
+                {/* Default Catch-All */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </ThemeProvider>
+          </ToastProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 };
 
