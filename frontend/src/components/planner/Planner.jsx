@@ -13,6 +13,14 @@ import {
   FileText
 } from 'lucide-react';
 
+const getLocalDateString = (date = new Date()) => {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export const Planner = () => {
   const { apiFetch } = useAuth();
   const { showToast } = useToast();
@@ -57,7 +65,7 @@ export const Planner = () => {
     const day = dateObj.getDay();
     const diff = dateObj.getDate() - day + (day === 0 ? -6 : 1);
     const mon = new Date(dateObj.setDate(diff));
-    return mon.toISOString().split('T')[0];
+    return getLocalDateString(mon);
   };
 
   const fetchWeeklyPlan = async () => {
@@ -118,7 +126,7 @@ export const Planner = () => {
   const handleShiftWeek = (offset) => {
     const current = new Date(currentWeekMonday);
     current.setDate(current.getDate() + offset);
-    setCurrentWeekMonday(current.toISOString().split('T')[0]);
+    setCurrentWeekMonday(getLocalDateString(current));
   };
 
   // Goal adding handler per day

@@ -11,8 +11,17 @@ import {
   Sparkles,
   Zap,
   HelpCircle,
-  Award
+  Award,
+  Check
 } from 'lucide-react';
+
+const getLocalDateString = (date = new Date()) => {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 export const Tracker = () => {
   const { apiFetch, user, updateProfile } = useAuth();
@@ -20,6 +29,7 @@ export const Tracker = () => {
   
   // Logs state
   const [logs, setLogs] = useState([]);
+  const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [analytics, setAnalytics] = useState(null);
   
@@ -35,7 +45,7 @@ export const Tracker = () => {
   const [submitting, setSubmitting] = useState(false);
 
   // Custom onboarding states
-  const [customStartDate, setCustomStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [customStartDate, setCustomStartDate] = useState(getLocalDateString());
   const [starting, setStarting] = useState(false);
 
   useEffect(() => {
@@ -50,6 +60,13 @@ export const Tracker = () => {
       
       const analData = await apiFetch('/analytics');
       setAnalytics(analData);
+
+      try {
+        const tasksData = await apiFetch('/tasks');
+        setTasks(tasksData || []);
+      } catch (err) {
+        console.error('Error fetching tasks for tracker:', err);
+      }
 
       calculateMetrics(data);
     } catch (err) {
@@ -77,6 +94,29 @@ export const Tracker = () => {
       });
     }
     return dates;
+  };
+
+  // Helper to extract completion date in YYYY-MM-DD format
+  const getCompletionDateStr = (item) => {
+    if (!item.completed) return null;
+    const date = item.completedAt || item.updatedAt || item.createdAt;
+    if (!date) return null;
+    return getLocalDateString(new Date(date));
+  };
+
+  // Helper to dynamically calculate custom tooltip position based on grid placement
+  const getTooltipPositionClass = (dayIndex) => {
+    const colIndex10 = (dayIndex - 1) % 10;
+    const vertical = dayIndex <= 20 ? 'top-full mt-3' : 'bottom-full mb-3';
+    let horizontal = 'left-1/2 -translate-x-1/2';
+    
+    if (colIndex10 < 2) {
+      horizontal = 'left-0';
+    } else if (colIndex10 > 7) {
+      horizontal = 'right-0';
+    }
+    
+    return `${vertical} ${horizontal}`;
   };
 
   const cycleDates = generateCycleDates(user?.streakStartDate);
@@ -107,10 +147,10 @@ export const Tracker = () => {
       }
     });
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateString();
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const yesterdayStr = getLocalDateString(yesterday);
 
     const todayLog = sorted.find(l => l.date === todayStr);
     const yesterdayLog = sorted.find(l => l.date === yesterdayStr);
@@ -119,7 +159,7 @@ export const Tracker = () => {
       let run = 0;
       let checkDate = new Date();
       while (true) {
-        const checkStr = checkDate.toISOString().split('T')[0];
+        const checkStr = getLocalDateString(checkDate);
         const match = sorted.find(l => l.date === checkStr);
         if (match && match.status === 'productive') {
           run++;
@@ -134,7 +174,7 @@ export const Tracker = () => {
       let checkDate = new Date();
       checkDate.setDate(checkDate.getDate() - 1);
       while (true) {
-        const checkStr = checkDate.toISOString().split('T')[0];
+        const checkStr = getLocalDateString(checkDate);
         const match = sorted.find(l => l.date === checkStr);
         if (match && match.status === 'productive') {
           run++;
@@ -160,7 +200,7 @@ export const Tracker = () => {
   };
 
   const handleDateClick = (dayObj) => {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateString();
     const isFuture = new Date(dayObj.dateStr) > new Date(todayStr);
     
     if (isFuture) {
@@ -420,17 +460,29 @@ export const Tracker = () => {
           <div className="grid grid-cols-5 sm:grid-cols-10 gap-3">
             {cycleDates.map((day) => {
               const match = logs.find(l => l.date === day.dateStr);
-              const todayStr = new Date().toISOString().split('T')[0];
+              const todayStr = getLocalDateString();
               const isFuture = new Date(day.dateStr) > new Date(todayStr);
               const isToday = day.dateStr === todayStr;
+
+              // Filter tasks and checklist items completed on this day
+              const dayTasksAndChecklists = tasks.filter(task => {
+                const taskCompletedToday = getCompletionDateStr(task) === day.dateStr;
+                const hasSubtaskCompletedToday = task.subtasks && task.subtasks.some(st => getCompletionDateStr(st) === day.dateStr);
+                return taskCompletedToday || hasSubtaskCompletedToday;
+              }).map(task => {
+                const taskCompletedToday = getCompletionDateStr(task) === day.dateStr;
+                return {
+                  ...task,
+                  taskCompletedToday,
+                };
+              });
 
               return (
                 <div
                   key={day.index}
                   onClick={() => handleDateClick(day)}
-                  title={isFuture ? `${day.label}: 🔒 Future date` : `${day.label}: ${match ? match.status : 'No record'}`}
                   className={`
-                    aspect-square rounded-2xl flex flex-col justify-between p-2 transition-all duration-155 border
+                    relative group aspect-square rounded-2xl flex flex-col justify-between p-2 transition-all duration-155 border
                     ${isFuture
                       ? 'bg-slate-100/20 dark:bg-brand-900/10 border-slate-200/20 dark:border-brand-900/30 text-slate-450/40 dark:text-slate-600/40 opacity-40 cursor-not-allowed'
                       : 'cursor-pointer hover:scale-105 active:scale-95'
@@ -444,15 +496,111 @@ export const Tracker = () => {
                     ${isToday && !match ? 'ring-2 ring-blue-500/40 border-blue-500 dark:border-blue-400 shadow shadow-blue-500/10' : ''}
                   `}
                 >
-                  <div className="text-[9px] font-extrabold uppercase text-right leading-none">
+                  <div className="text-[9px] font-extrabold uppercase text-right leading-none select-none">
                     {day.dayOfWeek}
                   </div>
-                  <div className="text-[15px] font-extrabold font-sans tracking-tight leading-none">
+                  <div className="text-[15px] font-extrabold font-sans tracking-tight leading-none select-none">
                     {day.index}
                   </div>
-                  <div className="text-[9px] font-bold truncate leading-none mt-1">
+                  <div className="text-[9px] font-bold truncate leading-none mt-1 select-none">
                     {day.label}
                   </div>
+
+                  {/* Gorgeous Premium Tooltip */}
+                  {!isFuture && (
+                    <div className={`absolute ${getTooltipPositionClass(day.index)} hidden group-hover:block w-72 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md border border-slate-700/50 dark:border-brand-800/80 rounded-2xl p-4 text-left shadow-2xl z-50 text-white animate-fadeIn pointer-events-none`}>
+                      {/* Day Header */}
+                      <div className="flex justify-between items-center pb-2 border-b border-slate-800/80 mb-2">
+                        <div>
+                          <span className="text-[10px] uppercase font-bold text-slate-400">Day {day.index} History</span>
+                          <h5 className="text-xs font-bold text-white mt-0.5">{day.label} ({day.dayOfWeek})</h5>
+                        </div>
+                        {match ? (
+                          <span className={`px-2 py-0.5 text-[9px] font-extrabold uppercase rounded-lg ${
+                            match.status === 'productive'
+                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                              : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                          }`}>
+                            {match.status}
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 text-[9px] font-bold bg-slate-800 text-slate-400 rounded-lg">
+                            No log
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Score and Note summary if logged */}
+                      {match && (
+                        <div className="mb-2 bg-slate-800/40 border border-slate-850 rounded-xl p-2 text-[10px] space-y-1">
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-450 font-semibold">Focus Score:</span>
+                            <span className="text-blue-400 font-bold">{match.score}%</span>
+                          </div>
+                          {match.note && (
+                            <div className="text-slate-300 font-medium line-clamp-2 italic">
+                              "{match.note}"
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Tasks History list */}
+                      <div className="space-y-1.5">
+                        <div className="text-[9px] font-bold text-slate-450 uppercase tracking-wider">
+                          Productivity History:
+                        </div>
+                        {dayTasksAndChecklists.length === 0 ? (
+                          <div className="text-[10px] text-slate-500 py-1.5 italic">
+                            No tasks or subtasks completed.
+                          </div>
+                        ) : (
+                          <div className="max-h-36 overflow-y-auto space-y-2 pr-1 pointer-events-auto">
+                            {dayTasksAndChecklists.map((t, tIdx) => (
+                              <div key={tIdx} className="text-[11px] space-y-1 bg-slate-800/40 p-2 rounded-xl border border-slate-800/50">
+                                {/* Task Item */}
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  {t.taskCompletedToday ? (
+                                    <div className="w-3.5 h-3.5 bg-emerald-500 text-slate-950 rounded flex items-center justify-center shrink-0">
+                                      <Check size={10} strokeWidth={3} />
+                                    </div>
+                                  ) : (
+                                    <div className="w-3.5 h-3.5 rounded border border-slate-700 bg-slate-800 shrink-0" />
+                                  )}
+                                  <span className={`font-bold truncate ${t.taskCompletedToday ? 'text-emerald-400 line-through' : 'text-slate-300'}`}>
+                                    {t.title}
+                                  </span>
+                                </div>
+                                
+                                {/* Subtasks checklist items */}
+                                {t.subtasks && t.subtasks.length > 0 && (
+                                  <div className="pl-4.5 space-y-1 border-l border-slate-800/80 mt-1">
+                                    {t.subtasks.map((st, stIdx) => {
+                                      const isStCompletedToday = getCompletionDateStr(st) === day.dateStr;
+                                      return (
+                                        <div key={stIdx} className="flex items-center gap-1.5 min-w-0">
+                                          {isStCompletedToday ? (
+                                            <div className="w-3 h-3 bg-emerald-500/20 text-emerald-400 rounded flex items-center justify-center shrink-0">
+                                              <Check size={8} strokeWidth={3} />
+                                            </div>
+                                          ) : (
+                                            <div className="w-3 h-3 rounded-full border border-slate-700 bg-slate-800 shrink-0" />
+                                          )}
+                                          <span className={`text-[10px] truncate ${isStCompletedToday ? 'text-slate-300 line-through' : 'text-slate-500'}`}>
+                                            {st.title}
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}

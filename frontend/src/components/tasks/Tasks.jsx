@@ -20,6 +20,14 @@ import {
   Zap
 } from 'lucide-react';
 
+const getLocalDateString = (date = new Date()) => {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export const Tasks = () => {
   const { apiFetch, user } = useAuth();
   const { showToast } = useToast();
@@ -138,7 +146,7 @@ export const Tasks = () => {
       setPriority(parsed.priority || 'medium');
       setCategory(parsed.category || 'general');
       if (parsed.dueDate) {
-        setDueDate(new Date(parsed.dueDate).toISOString().split('T')[0]);
+        setDueDate(getLocalDateString(new Date(parsed.dueDate)));
       }
       setTagsInput(parsed.tags ? parsed.tags.join(', ') : '');
       
@@ -227,7 +235,7 @@ export const Tasks = () => {
     if (!task) return;
 
     const updatedSubtasks = task.subtasks.map((st, i) => 
-      i === subtaskIndex ? { ...st, completed: !st.completed } : st
+      i === subtaskIndex ? { ...st, completed: !st.completed, completedAt: !st.completed ? new Date().toISOString() : null } : st
     );
 
     try {

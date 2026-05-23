@@ -9,6 +9,9 @@ const SubtaskSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  completedAt: {
+    type: Date,
+  },
 });
 
 const TaskSchema = new mongoose.Schema({
@@ -25,6 +28,9 @@ const TaskSchema = new mongoose.Schema({
   completed: {
     type: Boolean,
     default: false,
+  },
+  completedAt: {
+    type: Date,
   },
   priority: {
     type: String,

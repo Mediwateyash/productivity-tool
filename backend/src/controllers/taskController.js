@@ -19,7 +19,7 @@ exports.getTasks = async (req, res) => {
 
 // Create a task
 exports.createTask = async (req, res) => {
-  const { title, priority, dueDate, category, tags, notes, subtasks } = req.body;
+  const { title, completed, priority, dueDate, category, tags, notes, subtasks } = req.body;
 
   try {
     if (!title) {
@@ -29,7 +29,8 @@ exports.createTask = async (req, res) => {
     const taskData = {
       user: req.user.id,
       title,
-      completed: false,
+      completed: completed || false,
+      completedAt: completed ? new Date() : null,
       priority: priority || 'medium',
       dueDate: dueDate || null,
       category: category || 'general',
@@ -62,7 +63,10 @@ exports.updateTask = async (req, res) => {
   try {
     const updates = {};
     if (title !== undefined) updates.title = title;
-    if (completed !== undefined) updates.completed = completed;
+    if (completed !== undefined) {
+      updates.completed = completed;
+      updates.completedAt = completed ? new Date() : null;
+    }
     if (priority !== undefined) updates.priority = priority;
     if (dueDate !== undefined) updates.dueDate = dueDate;
     if (category !== undefined) updates.category = category;

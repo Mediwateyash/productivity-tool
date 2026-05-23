@@ -30,6 +30,14 @@ import {
 } from 'recharts';
 import confetti from 'canvas-confetti';
 
+const getLocalDateString = (date = new Date()) => {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export const Dashboard = () => {
   const { apiFetch, user, updateProfile } = useAuth();
   const { showToast } = useToast();
@@ -68,7 +76,7 @@ export const Dashboard = () => {
     const day = dateObj.getDay();
     const diff = dateObj.getDate() - day + (day === 0 ? -6 : 1);
     const mon = new Date(dateObj.setDate(diff));
-    return mon.toISOString().split('T')[0];
+    return getLocalDateString(mon);
   };
 
   useEffect(() => {
@@ -117,14 +125,14 @@ export const Dashboard = () => {
     showToast('Focus target cleared.', 'info');
   };
 
-  // Quick Add Task from Dashboard
+    // Quick Add Task from Dashboard
   const handleQuickAddTask = async (e) => {
     e.preventDefault();
     if (!quickTaskTitle.trim()) return;
 
     setAddingTask(true);
     try {
-      const todayDateStr = new Date().toISOString().split('T')[0];
+      const todayDateStr = getLocalDateString();
       const newTask = {
         title: quickTaskTitle.trim(),
         priority: quickTaskPriority,
@@ -165,7 +173,7 @@ export const Dashboard = () => {
 
       // Promote virtual weekly goal to a real completed task in `/tasks`!
       try {
-        const todayDateStr = new Date().toISOString().split('T')[0];
+        const todayDateStr = getLocalDateString();
         const promotedTask = {
           title: task.title,
           priority: 'medium',
@@ -282,10 +290,10 @@ export const Dashboard = () => {
 
   // Filter tasks for Today's Schedule:
   // Show tasks due today OR incomplete tasks tagged 'today' or general active ones.
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getLocalDateString();
   const todayTasks = tasks.filter(t => {
     if (!t.dueDate) return !t.completed; // show incomplete items without deadlines
-    const taskDateStr = new Date(t.dueDate).toISOString().split('T')[0];
+    const taskDateStr = getLocalDateString(new Date(t.dueDate));
     return taskDateStr === todayStr || (!t.completed && t.tags && t.tags.includes('today'));
   });
 
