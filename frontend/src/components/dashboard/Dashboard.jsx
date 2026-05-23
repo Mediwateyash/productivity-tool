@@ -236,6 +236,23 @@ export const Dashboard = () => {
     }
   };
 
+  // Delete task from Dashboard backlog
+  const handleDeleteTask = async (task) => {
+    if (task.isWeeklyGoal) {
+      showToast('Weekly goals can be managed and removed from the Weekly Planner tab.', 'info');
+      return;
+    }
+
+    try {
+      await apiFetch(`/tasks/${task._id}`, { method: 'DELETE' });
+      setTasks(prev => prev.filter(t => t._id !== task._id));
+      showToast('Task permanently deleted.', 'info');
+    } catch (err) {
+      console.error('Delete task failed:', err);
+      showToast('Failed to delete task.', 'error');
+    }
+  };
+
   // Send Conversational Mentor message
   const handleSendChat = async (e) => {
     e.preventDefault();
@@ -490,11 +507,11 @@ export const Dashboard = () => {
                         className="text-slate-400 hover:text-blue-500 transition-colors mt-0.5 shrink-0"
                       >
                         {t.completed ? (
-                          <div className="w-4.5 h-4.5 bg-blue-600 text-white rounded flex items-center justify-center shadow shadow-blue-500/10">
+                          <div className="w-5 h-5 bg-blue-600 text-white rounded flex items-center justify-center shadow shadow-blue-500/10 shrink-0">
                             <Check size={12} />
                           </div>
                         ) : (
-                          <div className="w-4.5 h-4.5 rounded border border-slate-300 dark:border-brand-700" />
+                          <div className="w-5 h-5 rounded border border-slate-300 dark:border-brand-700 bg-white/70 dark:bg-brand-900/40 hover:border-blue-500 dark:hover:border-blue-500/80 transition-colors shrink-0" />
                         )}
                       </button>
                       
@@ -515,27 +532,43 @@ export const Dashboard = () => {
                           }`}>
                             {t.priority}
                           </span>
-                          <span>•</span>
-                          <span className="text-slate-500 dark:text-slate-350">{t.category}</span>
-                          {(t.isWeeklyGoal || (t.tags && t.tags.includes('weekly-goal'))) && (
+                          {t.isWeeklyGoal || (t.tags && t.tags.includes('weekly-goal')) ? (
                             <>
                               <span>•</span>
                               <span className="px-1 rounded bg-purple-500/10 text-purple-650 dark:text-purple-400 font-bold flex items-center gap-0.5">
                                 📅 Weekly Goal
                               </span>
                             </>
+                          ) : (
+                            t.category && (
+                              <>
+                                <span>•</span>
+                                <span className="text-slate-500 dark:text-slate-350">{t.category}</span>
+                              </>
+                            )
                           )}
                         </div>
                       </div>
                     </div>
 
-                    {/* Time indicator (if Pomos or dates exist) */}
-                    {t.pomodoros > 0 && (
-                      <span className="px-2 py-0.5 bg-orange-500/5 text-orange-500 text-[8px] font-extrabold rounded-lg flex items-center gap-0.5">
-                        <Flame size={8} />
-                        <span>{t.pomodoros} Pomos</span>
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2 shrink-0">
+                      {/* Time indicator (if Pomos or dates exist) */}
+                      {t.pomodoros > 0 && (
+                        <span className="px-2 py-0.5 bg-orange-500/5 text-orange-500 text-[8px] font-extrabold rounded-lg flex items-center gap-0.5">
+                          <Flame size={8} />
+                          <span>{t.pomodoros} Pomos</span>
+                        </span>
+                      )}
+
+                      {/* Discard / Delete Action Button */}
+                      <button
+                        onClick={() => handleDeleteTask(t)}
+                        className="p-1 text-slate-400 hover:text-rose-500 dark:text-slate-500 dark:hover:text-rose-450 hover:bg-slate-200/50 dark:hover:bg-brand-800/60 rounded-md active:scale-90 transition-all shrink-0"
+                        title="Delete Task"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
