@@ -23,4 +23,9 @@ router.get('/profile', auth, authController.getProfile);
 // @access   Private
 router.put('/profile', auth, authController.updateProfile);
 
+// @route    POST api/auth/test-email
+// @desc     Send test email reminder
+// @access   Private
+router.post('/test-email', auth, authController.sendTestEmail);
+
 module.exports = router;

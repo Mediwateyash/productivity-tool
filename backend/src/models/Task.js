@@ -48,6 +48,10 @@ const TaskSchema = new mongoose.Schema({
     default: 0,
   },
   subtasks: [SubtaskSchema],
+  reminderSent: {
+    type: Boolean,
+    default: false,
+  },
   createdAt: {
     type: Date,
     default: Date.now,

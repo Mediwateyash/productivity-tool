@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const localDB = require('../config/localDB');
+const emailService = require('../services/emailService');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dy_productivity_secret_key';
 
@@ -40,6 +41,14 @@ exports.register = async (req, res) => {
       xp: 0,
       level: 1,
       streak: 0,
+      emailPreferences: {
+        emailNotificationsEnabled: true,
+        reminderTiming: 30,
+        digestFrequency: 'daily',
+        preferenceReminders: true,
+        preferenceDigest: true,
+        preferenceWeeklyReport: true
+      }
     };
 
     if (process.env.USE_LOCAL_JSON === 'true') {
@@ -67,7 +76,15 @@ exports.register = async (req, res) => {
           theme: newUser.theme,
           xp: newUser.xp,
           level: newUser.level,
-          streak: newUser.streak
+          streak: newUser.streak,
+          emailPreferences: newUser.emailPreferences || {
+            emailNotificationsEnabled: true,
+            reminderTiming: 30,
+            digestFrequency: 'daily',
+            preferenceReminders: true,
+            preferenceDigest: true,
+            preferenceWeeklyReport: true
+          }
         }
       });
     });
@@ -123,7 +140,15 @@ exports.login = async (req, res) => {
           theme: user.theme,
           xp: user.xp,
           level: user.level,
-          streak: user.streak
+          streak: user.streak,
+          emailPreferences: user.emailPreferences || {
+            emailNotificationsEnabled: true,
+            reminderTiming: 30,
+            digestFrequency: 'daily',
+            preferenceReminders: true,
+            preferenceDigest: true,
+            preferenceWeeklyReport: true
+          }
         }
       });
     });
@@ -156,7 +181,15 @@ exports.getProfile = async (req, res) => {
       theme: user.theme || 'dark',
       xp: user.xp || 0,
       level: user.level || 1,
-      streak: user.streak || 0
+      streak: user.streak || 0,
+      emailPreferences: user.emailPreferences || {
+        emailNotificationsEnabled: true,
+        reminderTiming: 30,
+        digestFrequency: 'daily',
+        preferenceReminders: true,
+        preferenceDigest: true,
+        preferenceWeeklyReport: true
+      }
     });
   } catch (err) {
     console.error('Profile fetching error:', err);
@@ -166,7 +199,7 @@ exports.getProfile = async (req, res) => {
 
 // Update profile / settings
 exports.updateProfile = async (req, res) => {
-  const { name, theme, xp, level, streak } = req.body;
+  const { name, theme, xp, level, streak, emailPreferences } = req.body;
 
   try {
     const updates = {};
@@ -175,6 +208,7 @@ exports.updateProfile = async (req, res) => {
     if (xp !== undefined) updates.xp = xp;
     if (level !== undefined) updates.level = level;
     if (streak !== undefined) updates.streak = streak;
+    if (emailPreferences !== undefined) updates.emailPreferences = emailPreferences;
 
     let updatedUser = null;
 
@@ -199,10 +233,45 @@ exports.updateProfile = async (req, res) => {
       theme: updatedUser.theme,
       xp: updatedUser.xp,
       level: updatedUser.level,
-      streak: updatedUser.streak
+      streak: updatedUser.streak,
+      emailPreferences: updatedUser.emailPreferences || {
+        emailNotificationsEnabled: true,
+        reminderTiming: 30,
+        digestFrequency: 'daily',
+        preferenceReminders: true,
+        preferenceDigest: true,
+        preferenceWeeklyReport: true
+      }
     });
   } catch (err) {
     console.error('Update profile error:', err);
     res.status(500).json({ message: 'Server error, update failed' });
+  }
+};
+
+// Send test email
+exports.sendTestEmail = async (req, res) => {
+  try {
+    let user = null;
+    if (process.env.USE_LOCAL_JSON === 'true') {
+      user = await localDB.findById('users', req.user.id);
+    } else {
+      user = await User.findById(req.user.id);
+    }
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const mailResult = await emailService.sendTestSettingsEmail(user);
+    
+    if (mailResult && mailResult.success) {
+      return res.json({ success: true, message: 'Test email successfully dispatched!', mock: mailResult.offlineMock || false });
+    } else {
+      return res.status(400).json({ success: false, message: 'Email dispatch blocked by anti-spam policies or transport failure.' });
+    }
+  } catch (err) {
+    console.error('Test email failure:', err);
+    res.status(500).json({ message: 'Failed to send test email due to server error.' });
   }
 };

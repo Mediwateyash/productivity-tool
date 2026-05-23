@@ -33,6 +33,14 @@ const UserSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  emailPreferences: {
+    emailNotificationsEnabled: { type: Boolean, default: true },
+    reminderTiming: { type: Number, default: 30 }, // minutes before due date
+    digestFrequency: { type: String, enum: ['daily', 'weekly', 'none'], default: 'daily' },
+    preferenceReminders: { type: Boolean, default: true },
+    preferenceDigest: { type: Boolean, default: true },
+    preferenceWeeklyReport: { type: Boolean, default: true }
+  },
   createdAt: {
     type: Date,
     default: Date.now,

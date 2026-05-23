@@ -40,6 +40,10 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Internal server error, please contact support' });
 });
 
+// Initialize background cron scheduler
+const { initializeSchedulers } = require('./services/scheduler');
+initializeSchedulers();
+
 // Run server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
