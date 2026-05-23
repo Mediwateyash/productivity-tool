@@ -1,87 +1,427 @@
-import React from 'react';
-import { CalendarDays, Flame, CheckCircle, HelpCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../store/AuthContext';
+import { 
+  CalendarDays, 
+  Flame, 
+  CheckCircle2, 
+  XCircle, 
+  TrendingUp, 
+  Sparkles,
+  Zap,
+  HelpCircle,
+  Award
+} from 'lucide-react';
 
 export const Tracker = () => {
-  // Generate 60 days of grids
-  const days = Array.from({ length: 60 }, (_, i) => {
-    // Seed some mock productive days
-    const isProductive = i % 5 !== 0; 
-    return {
-      index: i + 1,
-      productive: isProductive,
-      date: `Day ${i + 1}`
-    };
-  });
+  const { apiFetch, user, updateProfile } = useAuth();
+  
+  // Logs state
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [analytics, setAnalytics] = useState(null);
+  
+  // Heatmap helper stats
+  const [currentStreak, setCurrentStreak] = useState(0);
+  const [longestStreak, setLongestStreak] = useState(0);
+  const [successRate, setSuccessRate] = useState(0);
+  
+  // Logging form states for clicking dates
+  const [selectedDayObj, setSelectedDayObj] = useState(null);
+  const [logScore, setLogScore] = useState(80);
+  const [logNote, setLogNote] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    fetchLogs();
+  }, []);
+
+  const fetchLogs = async () => {
+    try {
+      setLoading(true);
+      const data = await apiFetch('/logs');
+      setLogs(data);
+      
+      const analData = await apiFetch('/analytics');
+      setAnalytics(analData);
+
+      calculateMetrics(data);
+    } catch (err) {
+      console.error('Error fetching tracker logs:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Generate date strings for a 60-day cycle ending today!
+  const generateCycleDates = () => {
+    const dates = [];
+    for (let i = 59; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      dates.push({
+        index: 60 - i,
+        dateStr,
+        label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        dayOfWeek: d.toLocaleDateString('en-US', { weekday: 'short' })
+      });
+    }
+    return dates;
+  };
+
+  const cycleDates = generateCycleDates();
+
+  // Metrics calculator
+  const calculateMetrics = (logList) => {
+    if (!logList || logList.length === 0) {
+      setCurrentStreak(0);
+      setLongestStreak(0);
+      setSuccessRate(0);
+      return;
+    }
+
+    // Sort by date ascending
+    const sorted = [...logList].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+    let longest = 0;
+    let current = 0;
+    let activeRun = 0;
+
+    // Calculate streaks
+    sorted.forEach((log) => {
+      if (log.status === 'productive') {
+        activeRun++;
+        if (activeRun > longest) {
+          longest = activeRun;
+        }
+      } else {
+        activeRun = 0;
+      }
+    });
+
+    // Determine current active streak ending today or yesterday
+    const todayStr = new Date().toISOString().split('T')[0];
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+    const todayLog = sorted.find(l => l.date === todayStr);
+    const yesterdayLog = sorted.find(l => l.date === yesterdayStr);
+
+    if (todayLog && todayLog.status === 'productive') {
+      // search backward from today
+      let run = 0;
+      let checkDate = new Date();
+      while (true) {
+        const checkStr = checkDate.toISOString().split('T')[0];
+        const match = sorted.find(l => l.date === checkStr);
+        if (match && match.status === 'productive') {
+          run++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+          break;
+        }
+      }
+      current = run;
+    } else if (yesterdayLog && yesterdayLog.status === 'productive') {
+      // search backward from yesterday
+      let run = 0;
+      let checkDate = new Date();
+      checkDate.setDate(checkDate.getDate() - 1);
+      while (true) {
+        const checkStr = checkDate.toISOString().split('T')[0];
+        const match = sorted.find(l => l.date === checkStr);
+        if (match && match.status === 'productive') {
+          run++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+          break;
+        }
+      }
+      current = run;
+    } else {
+      current = 0;
+    }
+
+    setCurrentStreak(current);
+    setLongestStreak(longest || current);
+
+    // Calculate success percentage
+    const productiveCount = logList.filter(l => l.status === 'productive').length;
+    setSuccessRate(Math.round((productiveCount / logList.length) * 100));
+
+    // Sync streak with Auth Context user profile
+    if (user && user.streak !== current) {
+      updateProfile({ streak: current });
+    }
+  };
+
+  // Click handler to toggle or edit status
+  const handleDateClick = (dayObj) => {
+    const existing = logs.find(l => l.date === dayObj.dateStr);
+    setSelectedDayObj({
+      ...dayObj,
+      existingLog: existing || null
+    });
+    
+    if (existing) {
+      setLogScore(existing.score || 80);
+      setLogNote(existing.note || '');
+    } else {
+      setLogScore(80);
+      setLogNote('');
+    }
+  };
+
+  const handleSaveLog = async (status) => {
+    if (!selectedDayObj) return;
+
+    setSubmitting(true);
+    try {
+      const response = await apiFetch('/logs', {
+        method: 'POST',
+        body: JSON.stringify({
+          date: selectedDayObj.dateStr,
+          status,
+          score: logScore,
+          note: logNote.trim()
+        })
+      });
+
+      let updatedLogs;
+      const matchIndex = logs.findIndex(l => l.date === selectedDayObj.dateStr);
+      if (matchIndex !== -1) {
+        updatedLogs = logs.map(l => l.date === selectedDayObj.dateStr ? response : l);
+      } else {
+        updatedLogs = [response, ...logs];
+      }
+
+      setLogs(updatedLogs);
+      calculateMetrics(updatedLogs);
+      
+      // Auto-trigger weekly reviews caching
+      const newAnal = await apiFetch('/analytics');
+      setAnalytics(newAnal);
+
+      setSelectedDayObj(null);
+    } catch (err) {
+      console.error('Error logging daily progress:', err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-8 animate-fadeIn">
+      {/* Page Header */}
       <div>
-        <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white font-sans tracking-tight">60 Days Streak Tracker</h2>
-        <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm font-medium">Tick off productive days, cross off missed slots, and watch your streaks level up!</p>
+        <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white font-sans tracking-tight">
+          60 Days Productivity Tracker
+        </h2>
+        <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm font-medium">
+          Tick off productive days, log daily focus scores, and watch your unbroken streak level up.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Grid: Stats Widgets */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
-        {/* Left Column: Heatmap Grid (Col span 2) */}
+        {/* Metric 1: Current Streak */}
+        <div className="glass-card flex items-center justify-between p-5 relative overflow-hidden">
+          <div>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Current Streak</span>
+            <span className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 mt-1 block">
+              {currentStreak} <span className="text-xs font-semibold text-slate-400 uppercase">Days</span>
+            </span>
+            <span className="text-[10px] text-slate-400 mt-1 block font-medium">Auto-synced profile metric</span>
+          </div>
+          <div className="p-3.5 bg-orange-500/10 rounded-2xl text-orange-500 animate-pulse">
+            <Flame size={26} />
+          </div>
+        </div>
+
+        {/* Metric 2: Longest Streak */}
+        <div className="glass-card flex items-center justify-between p-5 relative overflow-hidden">
+          <div>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Longest Streak</span>
+            <span className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 mt-1 block">
+              {longestStreak} <span className="text-xs font-semibold text-slate-400 uppercase">Days</span>
+            </span>
+            <span className="text-[10px] text-slate-400 mt-1 block font-medium">All-time record</span>
+          </div>
+          <div className="p-3.5 bg-yellow-500/10 rounded-2xl text-yellow-500">
+            <Award size={26} />
+          </div>
+        </div>
+
+        {/* Metric 3: Success Percentage */}
+        <div className="glass-card flex items-center justify-between p-5 relative overflow-hidden">
+          <div>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Consistency Rate</span>
+            <span className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 mt-1 block">
+              {logs.length > 0 ? `${successRate}%` : '0%'}
+            </span>
+            <span className="text-[10px] text-slate-400 mt-1 block font-medium">{logs.length} days logged</span>
+          </div>
+          <div className="p-3.5 bg-emerald-500/10 rounded-2xl text-emerald-500">
+            <TrendingUp size={26} />
+          </div>
+        </div>
+
+      </div>
+
+      {/* Heatmap & Dynamic Modals Panel */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* Heatmap grid block (Col span 2) */}
         <div className="lg:col-span-2 glass-card">
           <div className="flex items-center justify-between mb-6">
             <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <CalendarDays size={18} className="text-blue-500" />
-              <span>Productivity Heatmap</span>
+              <span>Streak Heatmap Grid</span>
             </h3>
-            <span className="text-xs text-slate-400 font-semibold tracking-wide uppercase">60 Day Cycle</span>
+            <span className="px-2.5 py-1 text-[10px] font-bold bg-blue-500/10 text-blue-500 rounded-lg uppercase tracking-wider">
+              60 Days Cycle
+            </span>
           </div>
 
-          {/* Grid mapping */}
-          <div className="grid grid-cols-10 gap-3 max-w-lg mx-auto">
-            {days.map((day) => (
-              <div
-                key={day.index}
-                title={`${day.date}: ${day.productive ? 'Productive' : 'Missed'}`}
-                className={`
-                  h-10 rounded-xl flex items-center justify-center font-bold text-xs cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95
-                  ${day.productive 
-                    ? 'bg-gradient-to-br from-emerald-500/20 to-emerald-500/10 border border-emerald-500/20 text-emerald-500 dark:text-emerald-400' 
-                    : 'bg-gradient-to-br from-rose-500/20 to-rose-500/10 border border-rose-500/20 text-rose-500 dark:text-rose-400'}
-                `}
-              >
-                {day.index}
-              </div>
-            ))}
+          {/* Grid display */}
+          <div className="grid grid-cols-5 sm:grid-cols-10 gap-3">
+            {cycleDates.map((day) => {
+              const match = logs.find(l => l.date === day.dateStr);
+              return (
+                <div
+                  key={day.index}
+                  onClick={() => handleDateClick(day)}
+                  title={`${day.label}: ${match ? match.status : 'No record'}`}
+                  className={`
+                    aspect-square rounded-2xl flex flex-col justify-between p-2 cursor-pointer transition-all duration-150 hover:scale-105 active:scale-95 border
+                    ${match 
+                      ? match.status === 'productive'
+                        ? 'bg-gradient-to-br from-emerald-500/25 to-emerald-500/10 border-emerald-500/30 text-emerald-500 dark:text-emerald-400 shadow-sm shadow-emerald-500/5'
+                        : 'bg-gradient-to-br from-rose-500/25 to-rose-500/10 border-rose-500/30 text-rose-500 dark:text-rose-400'
+                      : 'bg-slate-100/50 hover:bg-slate-200/50 dark:bg-brand-850/40 dark:hover:bg-brand-800/70 border-slate-200/50 dark:border-brand-800/50 text-slate-400 dark:text-slate-500'
+                    }
+                  `}
+                >
+                  <div className="text-[9px] font-extrabold uppercase text-right leading-none">
+                    {day.dayOfWeek}
+                  </div>
+                  <div className="text-[15px] font-extrabold font-sans tracking-tight leading-none">
+                    {day.index}
+                  </div>
+                  <div className="text-[9px] font-bold truncate leading-none mt-1">
+                    {day.label}
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
-          <div className="flex items-center justify-center gap-6 mt-8 pt-4 border-t border-slate-200/50 dark:border-brand-800/40 text-xs">
-            <div className="flex items-center gap-2 text-emerald-500">
-              <div className="w-3.5 h-3.5 bg-emerald-500/20 border border-emerald-500/30 rounded" />
-              <span className="font-semibold">Productive Days</span>
-            </div>
-            <div className="flex items-center gap-2 text-rose-500">
-              <div className="w-3.5 h-3.5 bg-rose-500/20 border border-rose-500/30 rounded" />
-              <span className="font-semibold">Missed Days</span>
-            </div>
-          </div>
+          <p className="text-[10px] text-slate-400 mt-6 font-medium text-center flex items-center justify-center gap-1">
+            <HelpCircle size={12} className="text-slate-400" />
+            <span>Click any day grid block above to log status, score, or notes.</span>
+          </p>
         </div>
 
-        {/* Right Column: Consistency Metrics */}
+        {/* Right Column: Dynamic Edit Form or AI Advice Card */}
         <div className="space-y-6">
-          <div className="glass-card flex items-center gap-5 justify-between">
-            <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Streak Power</span>
-              <span className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 mt-1 block">85%</span>
-              <span className="text-[10px] text-slate-400 mt-1 block font-medium">Auto streaks integrity</span>
-            </div>
-            <div className="p-3 bg-blue-500/10 rounded-xl text-blue-500">
-              <Flame size={24} className="animate-pulse" />
-            </div>
-          </div>
+          
+          {/* Selected Day Log Editor */}
+          {selectedDayObj ? (
+            <div className="glass-card border border-blue-500/20 p-5 rounded-2xl animate-fadeIn">
+              <h4 className="font-extrabold text-sm text-slate-800 dark:text-slate-100 mb-3 flex items-center justify-between">
+                <span>Day {selectedDayObj.index} Status</span>
+                <span className="text-xs font-semibold text-slate-400">{selectedDayObj.label}</span>
+              </h4>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Productivity Score ({logScore})</label>
+                  <input
+                    type="range"
+                    min="10"
+                    max="100"
+                    step="5"
+                    value={logScore}
+                    onChange={(e) => setLogScore(Number(e.target.value))}
+                    className="w-full h-1.5 bg-slate-200 dark:bg-brand-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                  />
+                  <div className="flex justify-between text-[9px] font-bold text-slate-400 mt-1">
+                    <span>10% Tired</span>
+                    <span>100% Focused</span>
+                  </div>
+                </div>
 
-          <div className="glass-card bg-gradient-to-br from-blue-600/5 to-indigo-600/5 border border-blue-500/10">
-            <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-bold text-sm mb-3">
-              <CheckCircle size={16} className="text-blue-500 shrink-0" />
-              <span>Streak Milestones</span>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Daily Note (optional)</label>
+                  <textarea
+                    placeholder="E.g. Completed 4 Pomodoros, finished DB schemas..."
+                    value={logNote}
+                    onChange={(e) => setLogNote(e.target.value)}
+                    className="glass-input text-xs py-2 h-16 resize-none"
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    onClick={() => handleSaveLog('productive')}
+                    disabled={submitting}
+                    className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold uppercase tracking-wider flex items-center justify-center gap-1 active:scale-95 transition-all"
+                  >
+                    <CheckCircle2 size={13} />
+                    <span>Productive</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => handleSaveLog('missed')}
+                    disabled={submitting}
+                    className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-extrabold uppercase tracking-wider flex items-center justify-center gap-1 active:scale-95 transition-all"
+                  >
+                    <XCircle size={13} />
+                    <span>Missed</span>
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => setSelectedDayObj(null)}
+                  className="w-full text-center text-[10px] font-bold text-slate-400 hover:text-slate-300 uppercase tracking-wider mt-1"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
-            <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed font-medium">
-              Maintain a 7-day productive streak to unlock the **"Productivity Titan"** badge and claim a premium bonus of 500 XP reward!
+          ) : (
+            /* Motivational AI card */
+            <div className="glass-card bg-gradient-to-br from-blue-600/5 to-indigo-600/5 border border-blue-500/10 p-5 rounded-2xl">
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 bg-blue-500/10 rounded-xl text-blue-500 shrink-0">
+                  <Sparkles size={18} className="animate-pulse" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-xs text-slate-800 dark:text-slate-100 uppercase tracking-wider">AI Streak Advisor</h4>
+                  {analytics?.aiSummary ? (
+                    <p className="text-slate-600 dark:text-slate-300 text-xs mt-2 leading-relaxed font-medium">
+                      {analytics.aiSummary}
+                    </p>
+                  ) : (
+                    <p className="text-slate-500 dark:text-slate-400 text-xs mt-2 leading-relaxed font-medium">
+                      No logs submitted today. Click a day on the left cycle grid and submit a productive tick to check your routine diagnostics!
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Gamification milestones tips */}
+          <div className="glass-card">
+            <h4 className="font-extrabold text-xs text-slate-800 dark:text-slate-150 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <Zap size={14} className="text-yellow-500 shrink-0" />
+              <span>Streak Power Rules</span>
+            </h4>
+            <p className="text-slate-500 dark:text-slate-450 text-[11px] leading-relaxed font-medium">
+              Productive ticks instantly contribute to active streaks and increase consistency rate percentage. Ticking 3 and 7 continuous days automatically triggers milestone achievements!
             </p>
           </div>
         </div>
