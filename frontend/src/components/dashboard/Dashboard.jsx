@@ -44,6 +44,7 @@ export const Dashboard = () => {
   const [quickTaskTitle, setQuickTaskTitle] = useState('');
   const [quickTaskPriority, setQuickTaskPriority] = useState('medium');
   const [addingTask, setAddingTask] = useState(false);
+  const [weeklyGoals, setWeeklyGoals] = useState([]);
   
   // Conversational AI Coach
   const [chatMessage, setChatMessage] = useState('');
@@ -62,6 +63,14 @@ export const Dashboard = () => {
   ];
   const [currentQuote, setCurrentQuote] = useState(quotes[0]);
 
+  // Find Monday helper
+  const getMondayStr = (dateObj) => {
+    const day = dateObj.getDay();
+    const diff = dateObj.getDate() - day + (day === 0 ? -6 : 1);
+    const mon = new Date(dateObj.setDate(diff));
+    return mon.toISOString().split('T')[0];
+  };
+
   useEffect(() => {
     setCurrentQuote(quotes[Math.floor(Math.random() * quotes.length)]);
     fetchDashboardData();
@@ -74,6 +83,16 @@ export const Dashboard = () => {
       
       const tasksData = await apiFetch('/tasks');
       setTasks(tasksData);
+
+      // Load weekly planner goals for today
+      const mondayStr = getMondayStr(new Date());
+      const planData = await apiFetch(`/plans?weekStartDate=${mondayStr}`);
+      if (planData && planData.schedule) {
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const todayDayName = dayNames[new Date().getDay()];
+        const todayPlan = planData.schedule.find(d => d.day === todayDayName);
+        setWeeklyGoals(todayPlan ? (todayPlan.goals || []) : []);
+      }
     } catch (err) {
       console.error('Error seeding dashboard data:', err);
     } finally {
@@ -138,6 +157,49 @@ export const Dashboard = () => {
 
   // Complete task trigger
   const handleToggleTaskComplete = async (task) => {
+    if (task.isWeeklyGoal) {
+      if (task.completed) {
+        showToast('Weekly goals are marked complete in your backlog.', 'info');
+        return;
+      }
+
+      // Promote virtual weekly goal to a real completed task in `/tasks`!
+      try {
+        const todayDateStr = new Date().toISOString().split('T')[0];
+        const promotedTask = {
+          title: task.title,
+          priority: 'medium',
+          category: 'work',
+          dueDate: todayDateStr,
+          tags: ['weekly-goal', 'today'],
+          notes: 'Promoted from Weekly Planner Goal',
+          completed: true,
+          subtasks: []
+        };
+        
+        const created = await apiFetch('/tasks', {
+          method: 'POST',
+          body: JSON.stringify(promotedTask)
+        });
+        
+        // Append to list and trigger congratulations confetti!
+        setTasks(prev => [created, ...prev]);
+        showToast('🎯 Weekly goal promoted & completed! XP rewarded.', 'success');
+        
+        confetti({
+          particleCount: 80,
+          spread: 50,
+          origin: { y: 0.8 }
+        });
+        
+        await apiFetch('/achievements/check', { method: 'POST' });
+      } catch (err) {
+        console.error('Promotion failed:', err);
+        showToast('Failed to complete weekly goal.', 'error');
+      }
+      return;
+    }
+
     const nextCompleted = !task.completed;
     try {
       // Optimistic update
@@ -210,8 +272,24 @@ export const Dashboard = () => {
     return taskDateStr === todayStr || (!t.completed && t.tags && t.tags.includes('today'));
   });
 
-  const todayCompletedCount = todayTasks.filter(t => t.completed).length;
-  const todayTotalCount = todayTasks.length;
+  // Map weeklyGoals to virtual tasks if they don't already exist as tasks
+  const virtualWeeklyGoals = weeklyGoals
+    .filter(goal => !todayTasks.some(t => t.title.toLowerCase() === goal.toLowerCase()))
+    .map((goal, index) => {
+      const isCompletedInTasks = tasks.some(t => t.title.toLowerCase() === goal.toLowerCase() && t.completed);
+      return {
+        _id: `weekly_goal_${index}`,
+        title: goal,
+        completed: isCompletedInTasks,
+        priority: 'medium',
+        category: 'weekly goal',
+        isWeeklyGoal: true
+      };
+    });
+
+  const todayScheduleList = [...todayTasks, ...virtualWeeklyGoals];
+  const todayCompletedCount = todayScheduleList.filter(t => t.completed).length;
+  const todayTotalCount = todayScheduleList.length;
   const todayProgressPercent = todayTotalCount > 0 ? Math.round((todayCompletedCount / todayTotalCount) * 100) : 0;
 
   // General task ratios
@@ -397,7 +475,7 @@ export const Dashboard = () => {
                   <p className="text-[9px] text-slate-400 mt-0.5 font-medium">Quick add your first objective below to start!</p>
                 </div>
               ) : (
-                todayTasks.map(t => (
+                todayScheduleList.map(t => (
                   <div 
                     key={t._id}
                     className={`p-3.5 rounded-xl border flex items-center justify-between gap-4 transition-all duration-150 animate-fadeIn ${
@@ -439,6 +517,14 @@ export const Dashboard = () => {
                           </span>
                           <span>•</span>
                           <span className="text-slate-500 dark:text-slate-350">{t.category}</span>
+                          {(t.isWeeklyGoal || (t.tags && t.tags.includes('weekly-goal'))) && (
+                            <>
+                              <span>•</span>
+                              <span className="px-1 rounded bg-purple-500/10 text-purple-650 dark:text-purple-400 font-bold flex items-center gap-0.5">
+                                📅 Weekly Goal
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>

@@ -22,6 +22,16 @@ We have successfully completed the **Premium Dashboard Refinements** for the **D
 
 ---
 
+## 📅 Weekly Planner to Dashboard Integration
+
+We completed the seamless bridge between your **Weekly Planner** and your **Dashboard**:
+1. **Unified Today's Schedule**: The dashboard now calculates a unified schedule list that automatically merges standard daily tasks with the weekly planner goals designated for today.
+2. **Distinctive Visual Badge**: Added a premium purple label `📅 Weekly Goal` next to weekly planner goals to make them instantly recognizable.
+3. **Interactive Promotion Flow**: Checking a weekly planner goal instantly promotes it to a fully-logged daily task in `/tasks`, awards level XP, checks for unlocked Achievements/Milestones, and triggers a canvas-confetti explosion!
+4. **Intelligent Deduplication**: If a daily task matches a weekly planner goal title, the system automatically deduplicates them so your backlog stays clean and focused.
+
+---
+
 ## 📈 Compilation Build Status
 
 The Vite/Rollup production build compiles beautifully with split vendor dependencies:
