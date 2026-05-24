@@ -23,6 +23,21 @@ We have fully implemented the interactive setup and scheduling controls requeste
 
 ---
 
+## 📋 Today's Schedule Backlog & Rollover Logic
+
+We have optimized the Dashboard checklist, backlog rollover mechanics, and metrics widgets to align with your focus needs:
+
+1. **Today-First Completion Metrics**:
+   - The **"Tasks Ticked"** widget now tracks completions and totals *only* for the active local day's schedule instead of combining your lifetime tasks database (e.g., displaying `2/3` instead of the global `3/7`).
+   - The circular progress gauge adapts dynamically to today's active schedule completion level.
+2. **Backlog & Auto-Vanish Rollover**:
+   - When a new day starts, completed tasks from previous days automatically **vanish** from your active backlog to keep your view clean.
+   - Uncompleted (pending) tasks from yesterday or before automatically **roll over** (remain in the backlog) so you never lose track of outstanding items.
+   - Rolled-over backlog tasks show their original scheduled date next to their priority badge in a tiny, clean font (e.g. `📅 May 23`) for visual reference.
+
+---
+
+
 ## 📬 Email Reminder & Productivity Digest System (Nodemailer & node-cron)
 
 We have successfully engineered a production-ready Email Alerts suite matching the startup-level premium architecture of DY Productivity Tool:
