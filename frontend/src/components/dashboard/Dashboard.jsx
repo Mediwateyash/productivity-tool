@@ -38,6 +38,19 @@ const getLocalDateString = (date = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
+const formatTaskDate = (dueDateStr) => {
+  if (!dueDateStr) return '';
+  const parts = dueDateStr.split('T')[0].split('-');
+  if (parts.length === 3) {
+    const year = parseInt(parts[0]);
+    const month = parseInt(parts[1]) - 1;
+    const day = parseInt(parts[2]);
+    const d = new Date(year, month, day);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+  return new Date(dueDateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
 export const Dashboard = () => {
   const { apiFetch, user, updateProfile } = useAuth();
   const { showToast } = useToast();
@@ -289,12 +302,35 @@ export const Dashboard = () => {
   }
 
   // Filter tasks for Today's Schedule:
-  // Show tasks due today OR incomplete tasks tagged 'today' or general active ones.
+  // Show tasks due today OR incomplete tasks from the past (backlog).
   const todayStr = getLocalDateString();
   const todayTasks = tasks.filter(t => {
-    if (!t.dueDate) return !t.completed; // show incomplete items without deadlines
+    // If there is no due date: show it only if it is incomplete
+    if (!t.dueDate) {
+      return !t.completed;
+    }
+    
+    // Parse task due date in local format YYYY-MM-DD
     const taskDateStr = getLocalDateString(new Date(t.dueDate));
-    return taskDateStr === todayStr || (!t.completed && t.tags && t.tags.includes('today'));
+    
+    // Is the task due today?
+    const isDueToday = taskDateStr === todayStr;
+    
+    // Is the task due in the past (backlog)?
+    const isDueInPast = taskDateStr < todayStr;
+    
+    // If it is due today, show it (whether completed or incomplete)
+    if (isDueToday) {
+      return true;
+    }
+    
+    // If it is due in the past (backlog), show it ONLY if it is incomplete
+    if (isDueInPast) {
+      return !t.completed;
+    }
+    
+    // If it is due in the future, check if it's tagged 'today' and incomplete
+    return !t.completed && t.tags && t.tags.includes('today');
   });
 
   // Map weeklyGoals to virtual tasks if they don't already exist as tasks
@@ -418,12 +454,12 @@ export const Dashboard = () => {
           <div className="flex-1">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Tasks Ticked</span>
             <span className="text-4xl font-extrabold text-slate-800 dark:text-slate-100 mt-2 block font-sans tracking-tight">
-              {completedTasksCount} <span className="text-lg font-normal text-slate-400">/ {totalTasks}</span>
+              {todayCompletedCount} <span className="text-lg font-normal text-slate-400">/ {todayTotalCount}</span>
             </span>
-            <span className="text-[10px] text-slate-400 mt-2 block font-medium">{pendingTasksCount} pending tasks</span>
+            <span className="text-[10px] text-slate-400 mt-2 block font-medium">{todayTotalCount - todayCompletedCount} pending tasks today</span>
           </div>
           <div className="w-14 h-14 rounded-full border-4 border-slate-200 dark:border-brand-800 flex items-center justify-center shrink-0 relative">
-            <div className="absolute inset-0 rounded-full border-4 border-emerald-500" style={{ clipPath: `polygon(0 0, 100% 0, 100% ${taskRatio}%, 0 ${taskRatio}%)` }} />
+            <div className="absolute inset-0 rounded-full border-4 border-emerald-500" style={{ clipPath: `polygon(0 0, 100% 0, 100% ${todayProgressPercent}%, 0 ${todayProgressPercent}%)` }} />
             <CheckCircle size={20} className="text-emerald-500" />
           </div>
         </div>
@@ -554,6 +590,14 @@ export const Dashboard = () => {
                                 <span className="text-slate-500 dark:text-slate-350">{t.category}</span>
                               </>
                             )
+                          )}
+                          {t.dueDate && (
+                            <>
+                              <span>•</span>
+                              <span className="text-blue-550/80 dark:text-blue-400 font-semibold font-mono text-[8px]">
+                                📅 {formatTaskDate(t.dueDate.toString())}
+                              </span>
+                            </>
                           )}
                         </div>
                       </div>
