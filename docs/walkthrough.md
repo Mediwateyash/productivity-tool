@@ -62,6 +62,19 @@ We have successfully engineered a production-ready Email Alerts suite matching t
 
 ---
 
+## 🔧 One-Click Desktop Windows Setup Script (`install.bat`)
+
+We have created an automated, premium Windows-native batch script `install.bat` at the root of the project to allow extremely easy distribution and installation:
+
+1. **System Checks**: Verifies if Node.js is installed locally, showing useful direct links to download Node.js if absent.
+2. **Automated MERN Installation**: Automatically runs `npm run install-all` which installs all packages for root, frontend, and backend recursively in a single call.
+3. **Sleek CLI Styling**: Built using high-end Windows Console CLI branding with colored progress steps and ASCII indicator signs.
+4. **Actionable Success Screen**: Upon completion, it clears and prints:
+   `⚡ SUCCESS: DY Productivity Tool installed successfully! ⚡`
+   `👉 Double-click 'Launch.exe' inside this folder to auto-start!`
+
+---
+
 ## 📈 Compilation Build Status
 
 The Vite/Rollup production build compiles beautifully with split vendor dependencies:
