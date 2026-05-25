@@ -18,7 +18,9 @@ import {
   Square,
   Check,
   Compass,
-  AlertCircle
+  AlertCircle,
+  X,
+  Edit2
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -271,6 +273,45 @@ export const Dashboard = () => {
     } catch (err) {
       console.error('Delete task failed:', err);
       showToast('Failed to delete task.', 'error');
+    }
+  };
+
+  // Inline edit states
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editPriority, setEditPriority] = useState('medium');
+
+  const handleStartTaskEdit = (task) => {
+    if (task.isWeeklyGoal) {
+      showToast("Weekly goals can be managed and edited from the Weekly Planner tab.", "info");
+      return;
+    }
+    setEditingTaskId(task._id);
+    setEditTitle(task.title);
+    setEditPriority(task.priority || 'medium');
+  };
+
+  const handleSaveTaskEdit = async (taskId) => {
+    if (!editTitle.trim()) {
+      showToast("Task title cannot be empty.", "warning");
+      return;
+    }
+
+    try {
+      const updated = await apiFetch(`/tasks/${taskId}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          title: editTitle.trim(),
+          priority: editPriority
+        })
+      });
+
+      setTasks(prev => prev.map(t => t._id === taskId ? updated : t));
+      setEditingTaskId(null);
+      showToast("✏️ Task updated successfully!", "success");
+    } catch (err) {
+      console.error("Failed to update task:", err);
+      showToast("Failed to update task.", "error");
     }
   };
 
@@ -536,93 +577,152 @@ export const Dashboard = () => {
                   <p className="text-[9px] text-slate-400 mt-0.5 font-medium">Quick add your first objective below to start!</p>
                 </div>
               ) : (
-                todayScheduleList.map(t => (
-                  <div 
-                    key={t._id}
-                    className={`p-3.5 rounded-xl border flex items-center justify-between gap-4 transition-all duration-150 animate-fadeIn ${
-                      t.completed 
-                        ? 'bg-slate-50/50 dark:bg-brand-900/10 border-slate-200/50 dark:border-brand-800/30 opacity-60' 
-                        : 'bg-slate-100/50 dark:bg-brand-850/30 hover:bg-slate-200/50 dark:hover:bg-brand-800/40 border-slate-200/50 dark:border-brand-800/40'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <button 
-                        onClick={() => handleToggleTaskComplete(t)}
-                        className="text-slate-400 hover:text-blue-500 transition-colors mt-0.5 shrink-0"
-                      >
-                        {t.completed ? (
-                          <div className="w-5 h-5 bg-blue-600 text-white rounded flex items-center justify-center shadow shadow-blue-500/10 shrink-0">
-                            <Check size={12} />
+                todayScheduleList.map(t => {
+                  const isEditing = editingTaskId === t._id;
+                  
+                  return (
+                    <div 
+                      key={t._id}
+                      className={`p-3.5 rounded-xl border flex items-center justify-between gap-4 transition-all duration-150 animate-fadeIn ${
+                        t.completed 
+                          ? 'bg-slate-50/50 dark:bg-brand-900/10 border-slate-200/50 dark:border-brand-800/30 opacity-60' 
+                          : 'bg-slate-100/50 dark:bg-brand-850/30 hover:bg-slate-200/50 dark:hover:bg-brand-800/40 border-slate-200/50 dark:border-brand-800/40'
+                      }`}
+                    >
+                      {isEditing ? (
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full animate-fadeIn">
+                          <input
+                            type="text"
+                            required
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            className="glass-input text-xs py-1.5 px-3 flex-1 border-blue-500/40 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
+                            placeholder="Edit task title..."
+                            autoFocus
+                          />
+                          
+                          <div className="flex items-center gap-2 shrink-0">
+                            <select
+                              value={editPriority}
+                              onChange={(e) => setEditPriority(e.target.value)}
+                              className="text-xs bg-white dark:bg-brand-900 border border-slate-200/50 dark:border-brand-800/80 rounded-xl px-2 py-1.5 font-bold uppercase cursor-pointer"
+                            >
+                              <option value="low">Low</option>
+                              <option value="medium">Medium</option>
+                              <option value="high">High</option>
+                            </select>
+
+                            <button
+                              onClick={() => handleSaveTaskEdit(t._id)}
+                              className="p-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl active:scale-95 transition-all shadow-sm flex items-center justify-center"
+                              title="Save Changes"
+                            >
+                              <Check size={13} />
+                            </button>
+                            
+                            <button
+                              onClick={() => setEditingTaskId(null)}
+                              className="p-2 bg-slate-200 hover:bg-slate-300 dark:bg-brand-800 dark:hover:bg-brand-700 text-slate-700 dark:text-slate-200 rounded-xl active:scale-95 transition-all shadow-sm flex items-center justify-center"
+                              title="Cancel"
+                            >
+                              <X size={13} />
+                            </button>
                           </div>
-                        ) : (
-                          <div className="w-5 h-5 rounded border border-slate-300 dark:border-brand-700 bg-white/70 dark:bg-brand-900/40 hover:border-blue-500 dark:hover:border-blue-500/80 transition-colors shrink-0" />
-                        )}
-                      </button>
-                      
-                      <div className="min-w-0">
-                        <span className={`text-xs font-bold leading-tight block ${
-                          t.completed ? 'line-through text-slate-400' : 'text-slate-700 dark:text-slate-200'
-                        }`}>
-                          {t.title}
-                        </span>
-                        
-                        <div className="flex items-center gap-1.5 mt-0.5 text-[8px] text-slate-400 font-bold uppercase tracking-wider">
-                          <span className={`px-1 rounded ${
-                            t.priority === 'high' 
-                              ? 'bg-rose-500/10 text-rose-500' 
-                              : t.priority === 'medium'
-                              ? 'bg-orange-500/10 text-orange-500'
-                              : 'bg-blue-500/10 text-blue-500'
-                          }`}>
-                            {t.priority}
-                          </span>
-                          {t.isWeeklyGoal || (t.tags && t.tags.includes('weekly-goal')) ? (
-                            <>
-                              <span>•</span>
-                              <span className="px-1 rounded bg-purple-500/10 text-purple-650 dark:text-purple-400 font-bold flex items-center gap-0.5">
-                                📅 Weekly Goal
-                              </span>
-                            </>
-                          ) : (
-                            t.category && (
-                              <>
-                                <span>•</span>
-                                <span className="text-slate-500 dark:text-slate-350">{t.category}</span>
-                              </>
-                            )
-                          )}
-                          {t.dueDate && (
-                            <>
-                              <span>•</span>
-                              <span className="text-blue-550/80 dark:text-blue-400 font-semibold font-mono text-[8px]">
-                                📅 {formatTaskDate(t.dueDate.toString())}
-                              </span>
-                            </>
-                          )}
                         </div>
-                      </div>
-                    </div>
+                      ) : (
+                        <>
+                          <div className="flex items-center gap-3 min-w-0">
+                            <button 
+                              onClick={() => handleToggleTaskComplete(t)}
+                              className="text-slate-400 hover:text-blue-500 transition-colors mt-0.5 shrink-0"
+                            >
+                              {t.completed ? (
+                                <div className="w-5 h-5 bg-blue-600 text-white rounded flex items-center justify-center shadow shadow-blue-500/10 shrink-0">
+                                  <Check size={12} />
+                                </div>
+                              ) : (
+                                <div className="w-5 h-5 rounded border border-slate-300 dark:border-brand-700 bg-white/70 dark:bg-brand-900/40 hover:border-blue-500 dark:hover:border-blue-500/80 transition-colors shrink-0" />
+                              )}
+                            </button>
+                            
+                            <div className="min-w-0">
+                              <span className={`text-xs font-bold leading-tight block ${
+                                t.completed ? 'line-through text-slate-400' : 'text-slate-700 dark:text-slate-200'
+                              }`}>
+                                {t.title}
+                              </span>
+                              
+                              <div className="flex items-center gap-1.5 mt-0.5 text-[8px] text-slate-400 font-bold uppercase tracking-wider">
+                                <span className={`px-1 rounded ${
+                                  t.priority === 'high' 
+                                    ? 'bg-rose-500/10 text-rose-500' 
+                                    : t.priority === 'medium'
+                                    ? 'bg-orange-500/10 text-orange-500'
+                                    : 'bg-blue-500/10 text-blue-500'
+                                }`}>
+                                  {t.priority}
+                                </span>
+                                {t.isWeeklyGoal || (t.tags && t.tags.includes('weekly-goal')) ? (
+                                  <>
+                                    <span>•</span>
+                                    <span className="px-1 rounded bg-purple-500/10 text-purple-650 dark:text-purple-400 font-bold flex items-center gap-0.5">
+                                      📅 Weekly Goal
+                                    </span>
+                                  </>
+                                ) : (
+                                  t.category && (
+                                    <>
+                                      <span>•</span>
+                                      <span className="text-slate-500 dark:text-slate-350">{t.category}</span>
+                                    </>
+                                  )
+                                )}
+                                {t.dueDate && (
+                                  <>
+                                    <span>•</span>
+                                    <span className="text-blue-550/80 dark:text-blue-400 font-semibold font-mono text-[8px]">
+                                      📅 {formatTaskDate(t.dueDate.toString())}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      {/* Time indicator (if Pomos or dates exist) */}
-                      {t.pomodoros > 0 && (
-                        <span className="px-2 py-0.5 bg-orange-500/5 text-orange-500 text-[8px] font-extrabold rounded-lg flex items-center gap-0.5">
-                          <Flame size={8} />
-                          <span>{t.pomodoros} Pomos</span>
-                        </span>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {/* Time indicator (if Pomos or dates exist) */}
+                            {t.pomodoros > 0 && (
+                              <span className="px-2 py-0.5 bg-orange-500/5 text-orange-500 text-[8px] font-extrabold rounded-lg flex items-center gap-0.5">
+                                <Flame size={8} />
+                                <span>{t.pomodoros} Pomos</span>
+                              </span>
+                            )}
+
+                            {/* Inline Edit Button */}
+                            {!t.isWeeklyGoal && (
+                              <button
+                                onClick={() => handleStartTaskEdit(t)}
+                                className="p-1 text-slate-400 hover:text-blue-500 dark:text-slate-500 dark:hover:text-blue-450 hover:bg-slate-200/50 dark:hover:bg-brand-800/60 rounded-md active:scale-90 transition-all shrink-0"
+                                title="Edit Task"
+                              >
+                                <Edit2 size={13} />
+                              </button>
+                            )}
+
+                            {/* Discard / Delete Action Button */}
+                            <button
+                              onClick={() => handleDeleteTask(t)}
+                              className="p-1 text-slate-400 hover:text-rose-500 dark:text-slate-500 dark:hover:text-rose-450 hover:bg-slate-200/50 dark:hover:bg-brand-800/60 rounded-md active:scale-90 transition-all shrink-0"
+                              title="Delete Task"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </>
                       )}
-
-                      {/* Discard / Delete Action Button */}
-                      <button
-                        onClick={() => handleDeleteTask(t)}
-                        className="p-1 text-slate-400 hover:text-rose-500 dark:text-slate-500 dark:hover:text-rose-450 hover:bg-slate-200/50 dark:hover:bg-brand-800/60 rounded-md active:scale-90 transition-all shrink-0"
-                        title="Delete Task"
-                      >
-                        <Trash2 size={13} />
-                      </button>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
