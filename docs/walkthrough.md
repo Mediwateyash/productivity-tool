@@ -34,6 +34,10 @@ We have optimized the Dashboard checklist, backlog rollover mechanics, and metri
    - When a new day starts, completed tasks from previous days automatically **vanish** from your active backlog to keep your view clean.
    - Uncompleted (pending) tasks from yesterday or before automatically **roll over** (remain in the backlog) so you never lose track of outstanding items.
    - Rolled-over backlog tasks show their original scheduled date next to their priority badge in a tiny, clean font (e.g. `📅 May 23`) for visual reference.
+3. **Interactive Inline Editing**:
+   - Backlog items now include a modern **Edit** action button (represented by a sleek pencil icon) next to the delete button.
+   - Clicking edit instantly transforms the list item into an **inline edit form** right inside the list, preventing distracting page navigations.
+   - Users can instantly correct spelling mistakes in the task title, adjust the task priority (`Low`, `Medium`, `High`), and click a green **Save** checkmark (or gray **Cancel** icon) to sync with the database and refresh the dashboard.
 
 ---
 
