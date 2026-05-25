@@ -55,11 +55,9 @@ export const Login = () => {
       <div className="w-full max-w-md relative z-10">
         {/* Brand Logo Header */}
         <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center text-white font-extrabold text-3xl shadow-xl shadow-blue-500/20 mx-auto mb-4">
-            DY
-          </div>
+          <img src="/logo.png" alt="Productivity Logo" className="w-14 h-14 object-contain mx-auto mb-4" />
           <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white font-sans tracking-tight">
-            DY Productivity Tool
+            Productivity
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 font-medium">
             “Plan Better. Execute Smarter. Grow Daily.”

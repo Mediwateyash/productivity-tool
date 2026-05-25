@@ -2,7 +2,7 @@ const { spawn, exec } = require('child_process');
 const path = require('path');
 
 console.log('\x1b[36m%s\x1b[0m', '=========================================================');
-console.log('\x1b[36m%s\x1b[0m', '   ⚡ DY PRODUCTIVITY TOOL STANDALONE LAUNCHER ACTIVE ⚡');
+console.log('\x1b[36m%s\x1b[0m', '   ⚡ PRODUCTIVITY STANDALONE LAUNCHER ACTIVE ⚡');
 console.log('\x1b[36m%s\x1b[0m', '=========================================================');
 console.log('\x1b[35m%s\x1b[0m', '📦 Initializing backend MERN database and frontend servers concurrently...\n');
 

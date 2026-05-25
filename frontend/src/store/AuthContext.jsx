@@ -383,7 +383,7 @@ export const AuthProvider = ({ children }) => {
       
       // Initialize some cool seed tasks for them so the dashboard looks awesome immediately!
       const seedTasks = [
-        { _id: 'seed_1', title: 'Explore DY Productivity Dashboard 🚀', completed: false, priority: 'high', category: 'general', tags: ['onboarding'], pomodoros: 0, subtasks: [], createdAt: new Date().toISOString() },
+        { _id: 'seed_1', title: 'Explore Productivity Dashboard 🚀', completed: false, priority: 'high', category: 'general', tags: ['onboarding'], pomodoros: 0, subtasks: [], createdAt: new Date().toISOString() },
         { _id: 'seed_2', title: 'Try custom Pomodoro focus timer ⏱️', completed: false, priority: 'medium', category: 'study', tags: ['focus'], pomodoros: 0, subtasks: [], createdAt: new Date().toISOString() },
         { _id: 'seed_3', title: 'Brainstorm creative project ideas 💡', completed: false, priority: 'low', category: 'work', tags: ['planning'], pomodoros: 0, subtasks: [], createdAt: new Date().toISOString() }
       ];

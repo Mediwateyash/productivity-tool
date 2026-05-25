@@ -132,7 +132,7 @@ const getHtmlLayout = (contentHtml, previewText) => {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DY Productivity Tool</title>
+  <title>Productivity</title>
   <style>
     body {
       margin: 0;
@@ -249,7 +249,7 @@ const getHtmlLayout = (contentHtml, previewText) => {
     <div class="container">
       <div class="header">
         <div class="logo-container">
-          <span class="logo-text">DY Productivity Tool</span>
+          <span class="logo-text">Productivity</span>
         </div>
         <div class="subtitle">Plan Better. Execute Smarter. Grow Daily.</div>
       </div>
@@ -259,7 +259,7 @@ const getHtmlLayout = (contentHtml, previewText) => {
       <div class="footer">
         <p>This email was sent by your virtual AI Productivity Coach.</p>
         <p>Manage your notifications anytime in your <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/settings">Settings Dashboard</a>.</p>
-        <p style="margin-top: 16px; font-size: 9px; color: #475569;">© 2026 DY Productivity. Premium Glassmorphic Systems.</p>
+        <p style="margin-top: 16px; font-size: 9px; color: #475569;">© 2026 Productivity. Premium Glassmorphic Systems.</p>
       </div>
     </div>
   </div>
@@ -289,7 +289,7 @@ const sendEmail = async ({ userId, to, subject, htmlContent, previewText, templa
   }
 
   const mailOptions = {
-    from: `"DY Productivity Coach" <${process.env.EMAIL_USER}>`,
+    from: `"Productivity Coach" <${process.env.EMAIL_USER}>`,
     to,
     subject,
     html: finalHtml
@@ -338,7 +338,7 @@ const emailService = {
       <h2 style="margin-top:0; color:#ffffff; font-size:22px; font-weight:800;">🔒 SMTP Setup Fully Configured!</h2>
       <p style="color:#cbd5e1; font-size:14px; line-height:1.6;">Hello, <strong>${user.name}</strong>!</p>
       <p style="color:#cbd5e1; font-size:14px; line-height:1.6;">
-        Congratulations! Your **DY Productivity Tool** email notifications are now securely integrated with Nodemailer & Gmail SMTP credentials.
+        Congratulations! Your **Productivity** email notifications are now securely integrated with Nodemailer & Gmail SMTP credentials.
       </p>
       <div class="card" style="text-align: center; border: 1px dashed rgba(59,130,246,0.3); background-color: rgba(59,130,246,0.05);">
         <p style="color:#60a5fa; font-size:12px; font-weight:700; margin:0; text-transform:uppercase; letter-spacing:0.05em;">Preferences Status</p>
@@ -355,7 +355,7 @@ const emailService = {
     return sendEmail({
       userId: user.id || user._id,
       to: user.email,
-      subject: '✨ Setup Confirmed: DY Productivity Notifications Active',
+      subject: '✨ Setup Confirmed: Productivity Notifications Active',
       htmlContent,
       previewText: 'Your email credentials are functional and notifications are fully enabled!',
       templateType: 'test-email'

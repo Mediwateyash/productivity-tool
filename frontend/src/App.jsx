@@ -9,6 +9,7 @@ import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { Login } from './components/auth/Login';
 import { Register } from './components/auth/Register';
 import { Sidebar } from './components/layout/Sidebar';
+import { Footer } from './components/layout/Footer';
 import { Dashboard } from './components/dashboard/Dashboard';
 import { Tasks } from './components/tasks/Tasks';
 import { Tracker } from './components/tracker/Tracker';
@@ -40,8 +41,11 @@ const CoreLayout = ({ children }) => {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-slate-50 dark:bg-brand-950 transition-colors duration-300">
       <Sidebar />
-      <main className="flex-1 p-4 md:p-8 lg:pl-72 pt-20 lg:pt-8 max-w-7xl mx-auto w-full overflow-x-hidden">
-        {children}
+      <main className="flex-1 p-4 md:p-8 lg:pl-72 pt-20 lg:pt-8 max-w-7xl mx-auto w-full overflow-x-hidden flex flex-col justify-between">
+        <div>
+          {children}
+        </div>
+        <Footer />
       </main>
     </div>
   );

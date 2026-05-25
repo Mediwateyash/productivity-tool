@@ -1,9 +1,9 @@
 @echo off
-title DY Productivity Tool - Installer
+title Productivity - Installer
 color 0b
 
 echo =========================================================
-echo    ⚡ WELCOME TO DY PRODUCTIVITY TOOL INSTALLATION ⚡
+echo    ⚡ WELCOME TO PRODUCTIVITY INSTALLATION ⚡
 echo =========================================================
 echo.
 echo [1/3] Verifying Node.js environment installation...
@@ -49,7 +49,7 @@ echo =========================================================
 echo [3/3] Completing setup...
 echo =========================================================
 echo.
-echo  ⚡ SUCCESS: DY Productivity Tool installed successfully! ⚡
+echo  ⚡ SUCCESS: Productivity installed successfully! ⚡
 echo.
 echo  📂 All node_modules and structural dependencies are configured.
 echo  🚀 You can now launch and run your MERN command center.

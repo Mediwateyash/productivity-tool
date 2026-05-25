@@ -45,11 +45,9 @@ export const Sidebar = () => {
       {/* Mobile Top Header */}
       <header className="lg:hidden w-full h-16 bg-white dark:bg-brand-900/90 backdrop-blur-md border-b border-slate-200/50 dark:border-brand-800/50 px-4 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-lg shadow-md shadow-blue-500/20">
-            DY
-          </div>
+          <img src="/logo.png" alt="Productivity Logo" className="w-8 h-8 object-contain" />
           <span className="font-extrabold text-slate-800 dark:text-white font-sans text-lg tracking-tight">
-            DY Tool
+            Productivity
           </span>
         </div>
         <button 
@@ -69,12 +67,10 @@ export const Sidebar = () => {
         <div>
           {/* Logo Brand Title */}
           <div className="flex items-center gap-3 mb-8 px-2">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-extrabold text-xl shadow-lg shadow-blue-500/20">
-              DY
-            </div>
+            <img src="/logo.png" alt="Productivity Logo" className="w-10 h-10 object-contain" />
             <div>
-              <h1 className="font-extrabold text-slate-900 dark:text-white font-sans leading-none text-lg tracking-tight">
-                DY Productivity
+              <h1 className="font-extrabold text-slate-950 dark:text-white font-sans leading-none text-lg tracking-tight">
+                Productivity
               </h1>
               <p className="text-[10px] text-slate-400 font-medium tracking-wider uppercase mt-1">
                 EXECUTE SMARTER
